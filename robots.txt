@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Sitemap: https://tresor4k.github.io/sitemap.xml
+Sitemap: https://tresor4k.github.io/external-backlinks-sitemap.xml
