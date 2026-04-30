@@ -116,7 +116,7 @@ La réforme FE introduit deux rôles distincts : **émetteur** et **récepteur**
 
 Le module `tva-master.js` ci-dessus peut être branché directement dans un générateur Factur-X côté Node.js, ou compilé via esbuild pour un usage navigateur dans un formulaire de pré-facturation. La logique reste identique ; seul le contexte d'exécution change.
 
-Pour vérifier manuellement n'importe quelle valeur avant intégration dans un pipeline, un [outil officiel de référence](https://macalculatriceenligne.com/finance/tva/calcul-tva/) permet de croiser les résultats sans écrire une ligne de code.
+Pour vérifier manuellement n'importe quelle valeur avant intégration dans un pipeline, un [outil officiel de référence](https://macalculatriceenligne.com/finance/impots/calcul-tva/) permet de croiser les résultats sans écrire une ligne de code.
 
 ---
 
@@ -134,8 +134,8 @@ La cible pour la version `1.0.0` : couvrir 100 % des régimes TVA applicables en
 
 ## Pages détaillées
 
-- [TVA maître + FE 2026](https://macalculatriceenligne.com/finance/tva/calcul-tva/) *(auteur : Mehdi)*
-- [Convertisseur HT↔TTC](https://macalculatriceenligne.com/finance/tva/calcul-ht-ttc/) *(auteur : Mehdi)*
+- [TVA maître + FE 2026](https://macalculatriceenligne.com/finance/impots/calcul-tva/) *(auteur : Mehdi)*
+- [Convertisseur HT↔TTC](https://macalculatriceenligne.com/finance/impots/calcul-tva/ht-ttc/) *(auteur : Mehdi)*
 - [TVA 5,5 % rénovation](https://macalculatriceenligne.com/finance/tva/calcul-tva-5-5/) *(auteur : Mehdi)*
 - [Seuils 37 500 / 85 000 €](https://macalculatriceenligne.com/finance/tva/tva-auto-entrepreneur/) *(auteur : Mehdi)*
 
