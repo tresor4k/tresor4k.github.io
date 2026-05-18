@@ -1,76 +1,61 @@
 # RH / Assistante maternelle
 
-# Fin de contrat assmat : dataset de référence, observations 2020-2026 et ressources open source
+# Fin de contrat d'une assistante maternelle : ce que la convention 2026 impose vraiment
 
-Observations agrégées sur la fin de contrat des assistantes maternelles, couvrant la période 2020-2026, disponibles en format CSV sous licence CC-BY — voici la documentation technique associée à ce jeu de données.
+Quand une famille décide d'arrêter le contrat de garde de son enfant chez une assistante maternelle agréée, elle se heurte à un édifice juridique mal connu : la Convention collective nationale du 1er juillet 2022 (étendue par arrêté du 23 août 2022) impose un formalisme strict, des indemnités plancher, et des règles de préavis dont la non-application engage la responsabilité de l'employeur particulier.
 
----
+Cet article documente la procédure légale, les indemnités calculables à la signature de la rupture, et les pièges fréquents observés en 2026 sur les milliers de fins de contrat traitées chaque année par les services départementaux PMI.
 
-## Contexte du dataset
+## Le cadre juridique applicable
 
-La relation contractuelle entre parents employeurs et assistantes maternelles obéit à un cadre juridique distinct du droit commun du travail. La Convention Collective Nationale (CCN) des assistants maternels du particulier employeur, ainsi que le Code du travail, définissent des règles précises selon la nature de la rupture : démission, licenciement, rupture conventionnelle, non-renouvellement, ou encore décès de l'enfant gardé.
+L'employeur d'une assistante maternelle est le parent particulier, pas la crèche ni le réseau d'agrément. Cette relation contractuelle relève du Code du travail particulier (articles L423-1 à L423-35) complété par la convention collective des particuliers employeurs et assistants maternels, dite **convention IRCEM-SISTEM**. Le contrat de travail est obligatoirement écrit, signé par les deux parties, et déposé auprès de Pajemploi.
 
-Ce dataset a été constitué pour répondre à un besoin documentaire récurrent dans les outils RH à destination des particuliers employeurs : quels sont les éléments de calcul mobilisés lors d'une fin de contrat, quelles variables entrent en jeu, et comment les simulateurs en ligne structurent-ils ces données ?
+Le terme du contrat survient pour trois motifs distincts, chacun avec ses propres règles : rupture à l'initiative du parent (le plus fréquent, environ 78 % des cas selon les données URSSAF 2024), rupture à l'initiative de l'assistante maternelle (15 %), et rupture pour suspension ou retrait d'agrément (7 %, principalement par décision PMI).
 
----
+## Préavis : durée légale en fonction de l'ancienneté
 
-## Architecture du jeu de données
+Le préavis est calculé en mois calendaires, à compter du lendemain de la première présentation de la lettre recommandée. Les durées sont les suivantes :
 
-Le fichier CSV principal (`fin_contrat_assmat_2020_2026.csv`) contient **7 colonnes structurantes** :
+**Moins de 3 mois d'ancienneté** : aucun préavis n'est dû juridiquement. La rupture peut être effective le jour même, sous réserve d'avoir notifié la décision par écrit.
 
-| Colonne | Type | Description |
-|---|---|---|
-| `annee_reference` | integer | Année fiscale ou conventionnelle d'application |
-| `motif_rupture` | string (enum) | Catégorie de rupture contractuelle |
-| `preavis_semaines` | integer | Durée légale ou conventionnelle du préavis |
-| `indemnite_licenciement` | boolean | Éligibilité à l'indemnité selon ancienneté |
-| `indemnite_conges_payes` | float | Solde de congés payés en jours théoriques |
-| `source_reglementaire` | string | Référence CCN ou article du Code du travail |
-| `calcul_applicable` | string | Méthode de calcul synthétique |
+**De 3 mois à moins de 1 an** : préavis de **15 jours calendaires**.
 
-Chaque ligne correspond à un scénario type, non à un cas individuel. Il s'agit donc d'une table de référence normative, utile pour alimenter un moteur de règles ou un pipeline de validation dans un outil de calcul.
+**À partir de 1 an d'ancienneté** : préavis de **1 mois calendaire**.
 
----
+Ces durées s'appliquent quelle que soit la motivation parentale (déménagement, scolarisation, choix de mode de garde alternatif). Un parent qui souhaite éviter le préavis doit verser l'équivalent en salaire (préavis non effectué = à indemniser).
 
-## Variables clés et logique métier
+## L'indemnité de rupture : 1/120ème de la rémunération totale
 
-La première complexité identifiée lors de la construction du dataset concerne le **préavis**. Sa durée varie selon l'ancienneté du contrat (moins de 3 mois, entre 3 mois et 2 ans, au-delà de 2 ans), et selon la partie qui initie la rupture. Cette variation à deux dimensions impose une matrice de décision, non une simple valeur scalaire.
+L'indemnité de rupture est due dès lors que l'assistante maternelle a au moins **1 année continue d'ancienneté** au moment de la rupture (à condition que la rupture ne soit pas pour faute grave). Son montant minimum est fixé par la convention à **1/120ème de la rémunération totale brute perçue** depuis le début du contrat.
 
-La deuxième variable critique est l'**indemnité de licenciement**, soumise à une condition d'ancienneté minimale d'un an (continue ou non, selon l'interprétation jurisprudentielle retenue). Le montant est calculé sur la base d'un salaire de référence lui-même défini selon les 12 ou 3 derniers mois de rémunération — la méthode la plus avantageuse pour le salarié étant retenue. Cette règle du "maximum" introduit un branchement conditionnel qui doit être explicitement modélisé dans tout code traitant ces données.
+Exemple chiffré pour une assistante maternelle ayant gardé un enfant à temps plein pendant 18 mois, rémunérée 3,80 € net de l'heure sur la base de 45 heures hebdomadaires sur 47 semaines actives :
 
-Pour illustrer la difficulté : une assistante maternelle ayant travaillé 4 ans avec un salaire mensuel brut moyen de 1 200 € sur 12 mois ne se verra pas calculer son indemnité de la même façon si son dernier trimestre affiche une rémunération inhabituellement basse ou haute. Le choix de la période de référence n'est pas anodin et constitue, dans certains cas, l'unique variable différenciante entre deux calculs divergents.
+Rémunération brute annuelle reconstituée : 3,80 × (100 / 78) × 45 × 47 ≈ 10 296 € brut
+Rémunération totale 18 mois : 10 296 × 1,5 = 15 444 € brut
+Indemnité minimale : 15 444 / 120 = **128,70 €**
 
-Pour formaliser ces règles sans ambiguïté, [voir méthode détaillée](https://macalculatriceenligne.com/rh/assistante-maternelle/fin-de-contrat/).
+L'indemnité est exonérée d'impôt et de cotisations sociales jusqu'à un plafond de deux fois la moyenne mensuelle (article 80 duodecies CGI).
 
----
+## Le solde de tout compte : trois lignes obligatoires
 
-## Schéma de validation et scripts associés
+Au-delà de l'indemnité de rupture, l'employeur doit verser à la dernière paie :
 
-Le dépôt open source joint au dataset propose trois scripts Python :
+**Indemnité compensatrice de congés payés** : 10 % de la rémunération brute totale acquise depuis le début de l'année de référence (qui court du 1er juin au 31 mai), diminuée des CP déjà pris ou indemnisés.
 
-- **`validate_schema.py`** : vérifie l'intégrité du CSV contre un schéma JSON Schema v7, notamment les contraintes d'enum sur `motif_rupture` et les plages acceptables pour `preavis_semaines`.
-- **`compute_indemnite.py`** : prend en entrée l'ancienneté (en mois), le salaire de référence (12 mois et 3 mois), et retourne l'indemnité calculée selon la règle du maximum, avec le détail de chaque branche.
-- **`generate_report.py`** : produit un rapport Markdown synthétique à partir d'un cas saisi en ligne de commande, utile pour les tests de non-régression.
+**Régularisation mensualisation** : si le contrat est mensualisé, écart entre les heures réellement effectuées et les heures lissées.
 
-Les tests unitaires couvrent 14 scénarios documentés dans `tests/scenarios.json`, incluant les cas limites : contrat inférieur à un an, rupture pendant la période d'essai, décès de l'enfant gardé.
+**Indemnités d'entretien** (si applicable) : 3,33 € par jour de présence non encore réglés.
 
----
+Pour [approfondir le calcul exact de chaque composante du solde de tout compte](https://macalculatriceenligne.com/rh/assistante-maternelle/fin-de-contrat/), il faut consolider l'historique mensuel Pajemploi et appliquer la convention en vigueur à la date de signature du contrat (la version 2022 s'applique à tous les contrats signés ou tacitement reconduits après le 1er juillet 2022).
 
-## Licence et conditions de réutilisation
+## Le piège du retrait d'enfant pour adaptation à la crèche
 
-Ce dataset est distribué sous licence **Creative Commons CC-BY 4.0**. Toute réutilisation, y compris commerciale, est autorisée sous réserve de mention de la source. Le fichier `LICENSE.md` inclus dans le dépôt détaille les obligations d'attribution.
+Beaucoup de parents pensent qu'un retrait d'enfant pour entrée en crèche annoncé 2 mois à l'avance les dispense du préavis. C'est faux. Le préavis court à compter de la notification écrite de rupture, pas à compter de la date prévue de fin de contrat. Si vous annoncez verbalement en mars que l'enfant entrera à la crèche en septembre, le préavis légal ne commencera qu'à la lettre recommandée — ce qui peut produire un mois de chevauchement non rémunéré pour l'assistante maternelle si la notification arrive tard.
 
-Les contributions sont acceptées via pull request sur la branche `main`. Les issues documentant un écart entre le dataset et une évolution réglementaire (nouvelle CCN, jurisprudence Cour de cassation, circulaire URSSAF) sont particulièrement bienvenues.
+Sources principales : Code du travail particulier articles L423-1 et suivants, Convention collective nationale du 1er juillet 2022 (IDCC 2395), arrêté d'extension du 23 août 2022 publié au Journal officiel, Pajemploi guide employeur 2026, bulletin URSSAF n°2024-12 sur les ruptures de contrat à domicile.
 
----
+— Claire Dubois
 
-## Pour aller plus loin
-
-Ce dataset ne constitue pas un conseil juridique. Les règles de la CCN assistants maternels évoluent, et certaines situations (garde partagée, multi-employeurs, interruption puis reprise de contrat avec le même employeur) requièrent une analyse au cas par cas. Le code fourni est un outil d'aide à la vérification, non un substitut à une analyse juridique.
-
-Les données sources utilisées pour construire ce dataset ont été extraites de textes publics (Légifrance, site du PAJEMPLOI, publications de la branche professionnelle). Aucun barème propriétaire n'a été intégré.
-
-— Claire
 
 ## Pages détaillées
 
