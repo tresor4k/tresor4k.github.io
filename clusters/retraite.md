@@ -1,74 +1,70 @@
 # Retraite
 
-# Indemnité de départ à la retraite et statut frontalier Luxembourg : un dataset open source pour comprendre les règles qui s'appliquent
+# Indemnité de départ à la retraite 2026 : les trois situations qui changent tout
 
-Observations agrégées 2020-2026 sur le croisement « indemnité de départ + frontalier Luxembourg », distribuées en format CSV sous licence CC-BY — c'est la démarche qui sous-tend ce dépôt documentaire.
+Un salarié français qui quitte son emploi pour partir à la retraite à 64 ans (âge légal depuis la réforme de 2023) ne perçoit pas systématiquement une indemnité de départ. La règle juridique distingue trois situations bien différentes, dont une seule garantit l'indemnité minimum légale. Connaître cette distinction permet aux salariés en fin de carrière de chronométrer correctement leur départ et aux DRH d'éviter les contestations devant le conseil des prud'hommes.
 
----
+## Situation 1 : départ volontaire à la retraite
 
-## Pourquoi un dataset sur ce sujet précis ?
+Quand un salarié décide de partir à la retraite de son propre chef, il bénéficie d'une indemnité minimum prévue par l'article D1237-1 du Code du travail, sous réserve d'avoir au moins **10 ans d'ancienneté** dans l'entreprise. Le barème légal minimum est progressif :
 
-Le cas du travailleur frontalier employé au Luxembourg et résidant en France constitue l'un des points de friction les plus documentés dans les forums RH transfrontaliers. Deux systèmes juridiques coexistent, deux administrations fiscales revendiquent parfois leur compétence, et la littérature officielle reste dispersée entre circulaires URSSAF, conventions bilatérales France-Luxembourg et doctrine fiscale de l'Administration des contributions directes luxembourgeoise.
+- 10 à 15 ans d'ancienneté : **0,5 mois** de salaire
+- 15 à 20 ans : **1 mois**
+- 20 à 30 ans : **1,5 mois**
+- 30 ans et plus : **2 mois**
 
-L'idée de constituer un jeu de données structuré est née d'un constat simple : les questions posées sur les forums spécialisés entre 2020 et 2026 tournent autour de trois variables constantes — le pays d'emploi (Luxembourg), le pays de résidence fiscale (majoritairement Moselle, Meurthe-et-Moselle, Meuse), et la nature du versement perçu à la cessation d'activité. Or ces trois variables n'ont jamais été croisées dans un fichier exploitable par des développeurs ou des data analysts.
+L'assiette de calcul est la moyenne mensuelle la plus favorable entre :
+1. Le salaire brut moyen des 12 derniers mois
+2. Le tiers du salaire brut des 3 derniers mois (avec proratisation des primes annuelles)
 
----
+Exemple : un cadre avec 22 ans d'ancienneté, salaire brut 4 500 €, prime annuelle 6 000 € versée en décembre. Sa moyenne 12 mois = (4 500 × 12 + 6 000) / 12 = **5 000 €**. Sa moyenne 3 derniers mois selon les périodes : variable. La méthode la plus favorable doit être appliquée, soit ici environ **5 000 € × 1,5 mois = 7 500 €** d'indemnité minimale légale.
 
-## Structure du dataset proposé
+Beaucoup de conventions collectives prévoient un barème plus généreux. Pour les cadres relevant de la convention Syntec, par exemple, l'indemnité passe à **1 mois après 10 ans**, **2 mois après 15 ans**, **3 mois après 20 ans**, **4 mois après 30 ans** — soit 200 % de plus que le minimum légal pour la dernière tranche.
 
-Le fichier CSV principal (`idr_frontalier_lux_2020_2026.csv`) contient les colonnes suivantes :
+## Situation 2 : mise à la retraite par l'employeur
 
-```
-annee | regime_emploi | pays_emploi | pays_residence | type_versement | base_calcul_brute | regime_fiscal_applique | source_reglementaire
-```
+L'employeur peut mettre un salarié à la retraite (sans son accord) à partir de **70 ans** (article L1237-5 du Code du travail). Entre 67 et 70 ans, le salarié peut accepter ou refuser la mise à la retraite, mais l'employeur doit le consulter chaque année.
 
-Les valeurs de `type_versement` distinguent notamment :
-- **IDR légale** (indemnité de départ à la retraite au sens du Code du travail français ou luxembourgeois)
-- **IDV** (indemnité de mise à la retraite à l'initiative de l'employeur)
-- **Complément conventionnel** versé selon une CCT luxembourgeoise
+Dans le cas d'une mise à la retraite, l'indemnité minimale est **identique à l'indemnité de licenciement** (article L1234-9), soit :
+- 1/4 de mois de salaire par année d'ancienneté pour les 10 premières années
+- 1/3 de mois par année au-delà de 10 ans
 
-La colonne `regime_fiscal_applique` encode les trois situations rencontrées : imposition en France uniquement, imposition au Luxembourg uniquement, ou situation mixte liée à l'article 15 de la convention fiscale bilatérale de 1958 modifiée.
+Pour 25 ans d'ancienneté à 5 000 € de salaire de référence :
+- (10 × 0,25) + (15 × 0,333) = 2,5 + 5,00 = **7,5 mois de salaire**
+- Indemnité minimale : 7,5 × 5 000 = **37 500 €**
 
----
+Soit **5 fois plus** que l'indemnité de départ volontaire pour la même situation. La fiscalité diffère également : la mise à la retraite ouvre droit à une exonération sociale et fiscale plus importante.
 
-## Le point de friction : quelle loi du travail régit l'indemnité ?
+## Situation 3 : rupture conventionnelle "homologuée retraite"
 
-Un frontalier qui a travaillé toute sa carrière au Luxembourg est soumis au droit du travail luxembourgeois. Son indemnité de départ à la retraite — si elle existe dans son contrat ou sa convention collective — est calculée selon les règles luxembourgeoises, non selon le barème légal français. C'est une nuance que beaucoup de salariés découvrent trop tard.
+Depuis la réforme 2023, la rupture conventionnelle entre 62 et 64 ans est possible mais la fiscalité a été harmonisée pour décourager les ruptures "déguisées" en retraite. L'indemnité de rupture conventionnelle dans ce cas reste soumise à la même exonération que la rupture conventionnelle classique : exonérée jusqu'à 2 PASS (94 200 € en 2026) sous conditions.
 
-La convention collective luxembourgeoise peut prévoir des montants plus favorables, mais elle peut aussi être muette sur le sujet, renvoyant au seul cadre légal local. Dans ce cas, l'indemnité légale luxembourgeoise est distincte dans son mode de calcul de l'indemnité légale française.
+Cette voie est utilisée par environ 18 % des salariés partant à la retraite, selon les données URSSAF 2024 (en hausse de 11 % depuis 2022 grâce à la réforme des retraites).
 
-Du côté fiscal, c'est encore plus sensible. La résidence en France ne suffit pas à déterminer automatiquement l'État d'imposition : l'article 15 de la convention franco-luxembourgeoise attribue le droit d'imposer à l'État où l'activité est exercée pour les revenus du travail, et certaines indemnités de départ peuvent être considérées comme un prolongement de cette rémunération. Le dataset agrège justement les positions administratives observées sur la période 2020-2026 pour cartographier la variabilité de cette qualification.
+## Fiscalité comparée des trois situations
 
----
+| Situation | Exonération sociale | Exonération fiscale |
+|---|---|---|
+| Départ volontaire | Limité au minimum légal | Limité à 2 PASS |
+| Mise à la retraite employeur | Totale jusqu'à 2 PASS | Totale jusqu'à 2 PASS |
+| Rupture conventionnelle 62-64 ans | Selon la rupture conventionnelle classique | Selon la rupture conventionnelle classique |
 
-## Exemple d'entrée dans le dataset
+Au-delà des plafonds d'exonération, l'indemnité bascule dans l'assiette d'imposition normale et est soumise au barème progressif de l'IR (cf. article 80 duodecies du CGI).
 
-Prenons un cas type figurant dans les données agrégées : un salarié résidant en Moselle, ayant travaillé 28 ans dans une entreprise établie à Luxembourg-Ville, partant à la retraite en 2024. Son contrat de travail luxembourgeois prévoit une indemnité conventionnelle. La colonne `regime_fiscal_applique` enregistre pour ce profil une imposition au Luxembourg, avec exonération en France sous réserve de la règle du taux effectif. C'est exactement le type de configuration que l'on veut rendre lisible dans le CSV pour éviter les doubles impositions non anticipées.
+## Cas particulier : frontalier Luxembourg
 
-Pour simuler le montant brut avant qualification fiscale, les utilisateurs du dataset sont renvoyés vers [le simulateur 2026 à jour](https://macalculatriceenligne.com/finance/retraite/calcul-indemnite-depart-retraite/), qui permet d'estimer la base de calcul légale française — utile comme référence comparative même pour les frontaliers souhaitant évaluer l'écart avec leur propre calcul.
+Pour les salariés frontaliers travaillant au Luxembourg, le régime applicable est celui du droit luxembourgeois (Code du travail luxembourgeois article L. 124-7), avec des règles différentes : indemnité maximale de 6 mois de salaire selon l'ancienneté, fiscalité luxembourgeoise au moment du versement, puis taxation française des revenus issus de l'indemnité au titre de la convention fiscale franco-luxembourgeoise du 20 mars 2018.
 
----
+Cette spécificité concerne environ 90 000 salariés français en 2026, principalement dans la zone Thionville-Metz-Longwy.
 
-## Licence, contributeurs et roadmap
+Pour [voir la méthode détaillée incluant les majorations conventionnelles et le cas du frontalier](https://macalculatriceenligne.com/finance/retraite/calcul-indemnite-depart-retraite/), il faut renseigner l'ancienneté exacte, la moyenne de salaire de référence, la convention collective applicable, et la nature de la rupture.
 
-Le dataset est publié sous licence **CC-BY 4.0**. Toute réutilisation requiert la mention de la source. Les contributions au fichier principal sont acceptées via pull request, sous réserve que chaque ligne soit accompagnée d'une `source_reglementaire` vérifiable (texte de loi, circulaire, décision jurisprudentielle ou position administrative datée).
+## Sources
 
-La roadmap 2026 prévoit :
-1. L'ajout d'un second fichier CSV couvrant les frontaliers résidant en Belgique ou en Allemagne travaillant au Luxembourg
-2. Un notebook Jupyter de visualisation des régimes fiscaux par année et type de versement
-3. Une API REST légère pour interroger les cas types par paramètre
+Code du travail articles L1237-5 (mise à la retraite employeur), L1234-9 (indemnité de licenciement), D1237-1 (départ volontaire à la retraite), Loi du 14 avril 2023 portant réforme des retraites, convention fiscale franco-luxembourgeoise du 20 mars 2018, URSSAF bulletin sur les ruptures conventionnelles 2024.
 
----
+— Mehdi Kabbaj
 
-## Note méthodologique
-
-Les données agrégées ne contiennent aucune information personnelle. Les montants figurant dans `base_calcul_brute` sont normalisés en multiples du SMIC luxembourgeois de l'année concernée pour garantir l'anonymisation tout en conservant l'utilité analytique. Les chercheurs souhaitant travailler sur la granularité absolue devront reconstituer les montants à partir des indices publiés par le STATEC (Institut national de la statistique et des études économiques du Grand-Duché).
-
-Ce dépôt n'est pas un outil de conseil juridique ou fiscal. Il documente des configurations observées pour faciliter la recherche, le développement d'outils et la pédagogie transfrontalière.
-
----
-
-— Mehdi
 
 ## Pages détaillées
 
