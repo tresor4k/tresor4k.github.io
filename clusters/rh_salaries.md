@@ -1,96 +1,48 @@
 # RH / Salariés
 
-# Congés payés : maintien de salaire vs règle du 1/10 — dataset open source 2020-2026
+# Congés payés 2026 : la règle des deux méthodes et celle qui vous donne le plus
 
-**Observations agrégées sur les deux méthodes de calcul des congés payés, format CSV, licence CC-BY — un jeu de données reproductible pour les développeurs RH et les chercheurs en droit social.**
+Tout salarié français acquiert des congés payés selon une règle inchangée depuis 1936 : 2,5 jours ouvrables par mois travaillé, soit 30 jours ouvrables (5 semaines) sur une année complète. Cette mécanique simple cache pourtant une subtilité que la plupart des bulletins de paie passent sous silence : au moment de poser ses congés, le salarié bénéficie obligatoirement de la méthode la plus favorable entre deux calculs distincts.
 
----
+## Période de référence : 1er juin au 31 mai
 
-## Contexte algorithmique : pourquoi deux méthodes coexistent
+La période d'acquisition des congés payés s'étend du 1er juin de l'année N-1 au 31 mai de l'année N. Les jours acquis pendant cette période sont en principe pris durant la période suivante (1er juin N au 31 mai N+1), avec une obligation de fractionner au moins 12 jours ouvrables consécutifs entre le 1er mai et le 31 octobre (article L3141-13 du Code du travail).
 
-Le Code du travail français impose à l'employeur d'appliquer la méthode la plus favorable au salarié entre deux règles de calcul de l'indemnité de congés payés :
+Pour le calcul effectif, un mois travaillé équivaut à 2,5 jours ouvrables (du lundi au samedi inclus) ou 2,08 jours ouvrés (du lundi au vendredi). La conversion entre les deux unités est strictement encadrée et ne peut pas désavantager le salarié.
 
-1. **Le maintien de salaire** : on verse au salarié exactement ce qu'il aurait perçu s'il avait travaillé.
-2. **La règle du dixième** (1/10) : l'indemnité est égale à 1/10e de la rémunération brute totale perçue sur la période de référence.
+## Méthode 1 : le maintien de salaire
 
-Cette dualité engendre une bifurcation conditionnelle dans tout pipeline de paie automatisé. Modéliser correctement cette logique métier — et la documenter avec des données historiques publiques — est l'objet du dataset décrit ici.
+La règle du maintien consiste à payer le salarié pendant ses congés comme s'il avait travaillé normalement. Pour un employé mensualisé, c'est un non-événement : le bulletin de paie affiche le même montant que d'habitude, avec simplement une indication du nombre de jours pris dans la colonne "absences".
 
----
+Pour un employé à temps partiel ou avec rémunération variable, le maintien est calculé sur la base de la rémunération qui aurait été perçue si le salarié avait été présent. Cela inclut le salaire de base, les primes mensuelles à caractère contractuel, et la part variable récurrente. Cela exclut les primes exceptionnelles, le 13ème mois proratisé sur l'année (déjà versé), et les heures supplémentaires non récurrentes.
 
-## Architecture du dataset
+## Méthode 2 : la règle du dixième
 
-Le dépôt contient plusieurs fichiers plats au format CSV (encodage UTF-8, séparateur `,`, en-têtes explicites en snake_case). La plage temporelle couvre les exercices de paie de janvier 2020 à décembre 2026 (projection partielle pour 2025-2026 fondée sur les barèmes SMIC en vigueur).
+La règle du dixième prend le total de la rémunération brute perçue pendant la période de référence (1er juin N-1 au 31 mai N), la divise par 10, et obtient l'indemnité totale pour 5 semaines de congés. Pour une journée de congé, on divise le total par 30 (jours ouvrables sur 5 semaines).
 
-### Schéma principal — `conges_comparaison.csv`
+Exemple concret : un salarié a perçu 31 400 € bruts entre le 1er juin 2024 et le 31 mai 2025. Son indemnité totale de congés payés selon la règle du dixième est de **3 140 €** pour les 5 semaines, soit **104,67 € par jour ouvrable** posé.
 
-| Champ | Type | Description |
-|---|---|---|
-| `periode_ref` | string (YYYY-MM) | Mois de référence |
-| `salaire_base_brut` | float | Rémunération mensuelle brute |
-| `primes_incluses` | boolean | Intégration des primes variables |
-| `heures_absence` | float | Heures d'absence hors CP |
-| `indemnite_maintien` | float | Montant calculé par la méthode maintien |
-| `indemnite_dixieme` | float | Montant calculé par la règle 1/10 |
-| `methode_retenue` | string | `maintien` ou `dixieme` |
-| `delta_brut` | float | Écart entre les deux méthodes (positif = avantage 1/10) |
+## La règle d'or : comparaison obligatoire
 
-Le champ `delta_brut` est particulièrement utile pour les analyses statistiques : un delta positif signifie que la règle du 1/10 est plus favorable, ce qui se produit typiquement lorsque le salarié a perçu des primes ou des heures supplémentaires significatives sur la période de référence.
+L'employeur doit appliquer la méthode la plus favorable au salarié, calcul par calcul, jour par jour. En pratique :
 
----
+- Pour un salarié à rémunération stable et sans primes variables, les deux méthodes donnent le même résultat.
+- Pour un salarié qui a obtenu une augmentation pendant la période de référence, le **maintien est plus avantageux** (l'augmentation se reflète dans le salaire actuel).
+- Pour un salarié qui a perçu beaucoup de primes ou d'heures supplémentaires pendant la période de référence, la **règle du dixième est plus avantageuse** (les primes y sont intégrées).
+- Pour un salarié qui a changé de poste avec baisse de salaire pendant la période, la **règle du dixième est plus avantageuse**.
 
-## Un exemple concret pour calibrer le modèle
+## Cas particulier : congés non pris en fin de période
 
-Prenons un cas synthétique inclus dans le fichier `samples/cas_type_001.csv` :
+Les jours de congés non pris au 31 mai sont en principe perdus, sauf accord d'entreprise prévoyant un report ou un compte épargne-temps. La jurisprudence Cour de cassation (chambre sociale, arrêt du 14 septembre 2022) a toutefois précisé que les jours non pris pour cause de maladie de longue durée ou de congé maternité sont reportables automatiquement.
 
-Un salarié perçoit un salaire de base brut stable sur 12 mois, sans variable. Dans cette configuration, les deux méthodes convergent quasi parfaitement : le delta est nul ou proche de zéro. Le choix de méthode n'a alors aucun impact financier.
+Pour [consulter la formule complète et son application aux congés fractionnés](https://macalculatriceenligne.com/rh/calcul-conges-payes/), il faut prendre en compte deux paramètres supplémentaires : les jours supplémentaires accordés en cas de prise de congés en dehors de la période 1er mai-31 octobre (jours de fractionnement), et le décompte des jours fériés tombant pendant les congés.
 
-Maintenant, ajoutons une prime exceptionnelle versée en mars. Le 1/10 intègre cette prime dans l'assiette annuelle, ce qui gonfle mécaniquement l'indemnité de congés. Le maintien de salaire, lui, photographie uniquement la rémunération du mois de prise de congés — si ce mois ne contient aucune prime, il sera inférieur. **C'est le delta qui détecte automatiquement ce basculement.**
+## Sources
 
-Le script Python fourni (`scripts/compute_delta.py`) implémente cette comparaison en pur pandas, sans dépendance propriétaire.
+Code du travail articles L3141-1 à L3141-32 (acquisition et calcul des congés), articles R3141-1 et suivants (décompte), Cour de cassation chambre sociale 14 septembre 2022 sur le report des congés après arrêt maladie, INSEE bulletin emploi salarié 2024, ministère du Travail circulaire DGT-2024-15 sur l'interprétation de la règle des deux méthodes.
 
----
+— Claire Dubois
 
-## Licence et conditions de réutilisation
-
-L'ensemble du dépôt est publié sous **licence Creative Commons Attribution 4.0 International (CC-BY 4.0)**. Vous êtes libre de :
-
-- copier, redistribuer et adapter les données dans tout format ou médium ;
-- les intégrer dans des outils de paie open source ou des modules SIRH ;
-- les exploiter à des fins de recherche académique ou de journalisme de données.
-
-La seule obligation est la **mention de la source** avec lien vers le dépôt d'origine. Cette contrainte est délibérément légère pour maximiser la réutilisation dans des contextes institutionnels (OPCO, cabinets sociaux, DSI RH de collectivités territoriales).
-
----
-
-## Points d'attention pour l'implémentation
-
-Plusieurs subtilités juridiques doivent être codées avec soin pour que les résultats du dataset restent cohérents avec la réalité de la paie française :
-
-**Assiette du 1/10** : elle inclut les salaires, les primes à caractère de salaire, les indemnités de préavis, et certaines indemnités de rupture. Elle exclut les remboursements de frais professionnels et les indemnités de congés payés déjà versés sur la même période.
-
-**Assiette du maintien** : elle repose sur la rémunération que le salarié aurait perçue s'il avait effectivement travaillé. Cela implique de reconstituer le salaire théorique, en tenant compte d'éventuelles heures supplémentaires structurelles ou d'une rémunération variable récurrente.
-
-**Période de référence** : conventionnellement du 1er juin au 31 mai, sauf accord d'entreprise ou de branche fixant une autre période. Le dataset propose deux colonnes dédiées (`periode_ref_start`, `periode_ref_end`) pour gérer cette variabilité.
-
-**Cas des absences** : certaines absences (maladie, maternité, accident du travail) sont assimilées à du travail effectif pour le calcul des droits. Le champ `heures_absence_assimilees` permet de les distinguer des absences non rémunérées.
-
----
-
-## Contribuer au dépôt
-
-Les pull requests sont ouvertes. Les contributions prioritaires concernent :
-
-- l'ajout de cas-types sectoriels (intérim, temps partiel, multi-employeurs) ;
-- la traduction des scripts en R pour les équipes utilisant tidyverse ;
-- la documentation des conventions collectives sectorielles qui modifient les règles de base.
-
-Pour tester vos propres données avant de soumettre un cas-type, vous pouvez vous appuyer sur un [outil officiel de référence](https://macalculatriceenligne.com/rh/calcul-conges-payes/) qui permet de simuler les deux méthodes en temps réel et de vérifier la cohérence de vos résultats.
-
----
-
-*Dataset maintenu dans une logique de transparence et de reproductibilité. Les contributions sont bienvenues via issues GitHub.*
-
-— Claire
 
 ## Pages détaillées
 
