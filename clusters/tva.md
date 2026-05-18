@@ -1,136 +1,72 @@
 # TVA
 
-# TVA maître et facturation électronique 2026 : implémentation open source en JavaScript pur
+# TVA 2026 : la fin du décalage de paiement et la facturation électronique généralisée
 
-Code ouvert : la méthode de calcul TVA maître, combinée aux exigences de la facturation électronique 2026, s'implémente en JavaScript pur avec une précision arithmétique reproductible par n'importe quel contributeur.
+La Taxe sur la Valeur Ajoutée représente la première ressource fiscale de l'État français : environ **101 milliards d'euros** de recettes nettes en 2024 selon la DGFiP. Quatre taux coexistent dans l'Hexagone, et 2026 marque l'année charnière de la généralisation de la facturation électronique obligatoire entre assujettis, qui modifie en profondeur la mécanique de déclaration et de récupération.
 
----
+## Les quatre taux de TVA français en 2026
 
-## Contexte technique : pourquoi exposer ce calcul en open data ?
+**Taux normal : 20 %**. C'est le taux par défaut, appliqué à la majorité des biens et services : électronique, textile, restauration sur place (sauf cas particuliers), produits manufacturés, services de conseil.
 
-La réforme de la facturation électronique (FE), dont le déploiement obligatoire s'échelonne à partir de 2026 selon la taille des entreprises, impose des flux structurés au format Factur-X, UBL ou CII. Ces formats embarquent les montants de TVA comme données typées — pas comme du texte libre. Cela signifie que tout pipeline de génération ou de validation de facture doit produire des valeurs numériques cohérentes, arrondies selon des règles précises, auditables ligne à ligne.
+**Taux intermédiaire : 10 %**. Concerne la restauration à emporter, les transports en commun, les travaux de rénovation et d'amélioration énergétique des logements anciens, la billetterie culturelle (musées, expositions), les produits agricoles non transformés vendus par les producteurs eux-mêmes.
 
-Publier la logique de calcul en open source sur GitHub Pages n'est pas un gadget pédagogique : c'est une réponse directe à ce besoin d'auditabilité. Un dataset de référence + un module JavaScript pur = une base testable, forkable et intégrable dans n'importe quel CI/CD.
+**Taux réduit : 5,5 %**. Pour les produits de première nécessité : alimentation (hors restauration), livres, abonnements presse écrite, équipements et services d'aide aux personnes âgées dépendantes ou handicapées, énergies renouvelables individuelles (depuis 2025).
 
----
+**Taux super-réduit : 2,1 %**. Réservé aux médicaments remboursables par la Sécurité sociale, certains spectacles vivants en début de représentation (jusqu'aux 140 premières représentations), et la presse au sens strict.
 
-## Anatomie du calcul : HT, TTC, TVA — trois vecteurs, un seul invariant
+Les territoires d'outre-mer (DOM hors Guyane et Mayotte) appliquent des taux distincts : 8,5 % normal, 2,1 % intermédiaire, et 1,75 % super-réduit.
 
-Le principe fondamental reste inchangé depuis des décennies : **TVA = Base HT × Taux**. La direction du calcul, elle, varie selon le sens du flux.
+## La formule de calcul : du TTC vers le HT
 
-**Sens 1 — à partir du HT (calcul en dehors) :**
-```
-TVA = HT × taux
-TTC = HT + TVA
-```
+Pour passer d'un montant TTC (toutes taxes comprises) à un montant HT (hors taxes), on divise par (1 + taux). Pour passer du HT au TTC, on multiplie par (1 + taux).
 
-**Sens 2 — à partir du TTC (calcul en dedans) :**
-```
-HT  = TTC / (1 + taux)
-TVA = TTC − HT
-```
+Exemple : facture restaurant à 84 € TTC en restauration sur place (taux 10 %).
+- Montant HT : 84 / 1,10 = **76,36 €**
+- TVA : 84 - 76,36 = **7,64 €**
 
-L'invariant structurel est : `HT + TVA = TTC`, toujours. C'est cet invariant que tout test unitaire doit vérifier avant d'émettre une facture électronique conforme.
+Pour un produit à 14,99 € TTC (taux 20 %, taux normal) :
+- HT : 14,99 / 1,20 = **12,49 €**
+- TVA : 14,99 - 12,49 = **2,50 €**
 
----
+## La facturation électronique généralisée à partir du 1er septembre 2026
 
-## Implémentation JavaScript — module pur, zéro dépendance
+La réforme issue de la LF 2024-1039 (calendrier ajusté par la LF 2026-103) impose progressivement la facturation électronique entre assujettis à la TVA :
 
-```javascript
-// tva-master.js — domaine public, contributeurs bienvenus
+**À partir du 1er septembre 2026** : toutes les entreprises doivent **recevoir** des factures électroniques. C'est-à-dire qu'elles doivent être inscrites dans le portail PPF (Portail Public de Facturation) ou un PDP (Plateforme de Dématérialisation Partenaire) et pouvoir traiter les factures structurées au format Factur-X ou UBL.
 
-const TAUX_FR = {
-  normal:      0.20,
-  intermediaire: 0.10,
-  reduit:      0.055,
-  super_reduit: 0.021,
-  specifique:  0.026,   // DOM spécifique
-};
+**À partir du 1er septembre 2026** : les grandes entreprises et les entreprises de taille intermédiaire doivent émettre des factures électroniques à leurs clients assujettis français.
 
-/**
- * Calcule TVA et TTC depuis un montant HT.
- * @param {number} ht      - Montant hors taxes
- * @param {string} regime  - Clé dans TAUX_FR
- * @returns {{ ht, tva, ttc, taux }}
- */
-function calcTVADepuisHT(ht, regime = 'normal') {
-  const taux = TAUX_FR[regime];
-  if (taux === undefined) throw new Error(`Taux inconnu : ${regime}`);
-  const tva  = Math.round(ht * taux * 100) / 100;
-  const ttc  = Math.round((ht + tva) * 100) / 100;
-  return { ht, tva, ttc, taux };
-}
+**À partir du 1er septembre 2027** : les PME et micro-entreprises doivent émettre des factures électroniques.
 
-/**
- * Extrait HT et TVA depuis un montant TTC.
- * @param {number} ttc
- * @param {string} regime
- */
-function calcTVADepuisTTC(ttc, regime = 'normal') {
-  const taux = TAUX_FR[regime];
-  if (taux === undefined) throw new Error(`Taux inconnu : ${regime}`);
-  const ht  = Math.round((ttc / (1 + taux)) * 100) / 100;
-  const tva = Math.round((ttc - ht) * 100) / 100;
-  return { ht, tva, ttc, taux };
-}
+Cette généralisation permet à l'administration fiscale de récupérer l'information de facturation en temps quasi-réel, ce qui devrait réduire la fraude à la TVA estimée à 13 milliards d'euros annuels selon le rapport de la Cour des comptes 2024.
 
-export { calcTVADepuisHT, calcTVADepuisTTC, TAUX_FR };
-```
+## La déclaration de TVA : trois régimes principaux
 
-Un exemple concret pour ancrer la lecture : une prestation de conseil facturée **1 200 € HT** au taux normal de 20 %. L'appel `calcTVADepuisHT(1200, 'normal')` retourne `{ ht: 1200, tva: 240, ttc: 1440, taux: 0.20 }`. Le champ `<cac:TaxAmount>` de votre fichier UBL recevra exactement `240.00` — aucune dérive d'arrondi possible avec cette méthode.
+**Régime de franchise** : pour les micro-entrepreneurs et petites structures dont le CA reste sous le seuil de **39 100 €** (services) ou **97 700 €** (ventes). Aucune TVA collectée ni récupérée. Facturation HT obligatoire avec mention "TVA non applicable, article 293 B du CGI".
 
----
+**Régime simplifié (RSI)** : pour les entreprises avec CA entre les seuils de franchise et **264 000 €** (services) ou **840 000 €** (ventes). Une déclaration annuelle CA12 en mai et deux acomptes semestriels (juillet et décembre) calculés sur la base de la TVA annuelle précédente.
 
-## Dataset open data associé : structure recommandée
+**Régime réel normal (RN)** : pour les autres entreprises et celles ayant opté volontairement. Déclaration mensuelle CA3 en ligne, paiement de la TVA due ou remboursement de la TVA créditrice.
 
-Pour alimenter des tests de non-régression ou des benchmarks de conformité FE 2026, voici le schéma JSON minimal d'un dataset de référence :
+## Cas pratique : restaurant qui combine sur place et à emporter
 
-```json
-[
-  {
-    "id": "TC-001",
-    "sens": "HT_vers_TTC",
-    "regime": "normal",
-    "input_ht": 1200.00,
-    "expected_tva": 240.00,
-    "expected_ttc": 1440.00
-  },
-  {
-    "id": "TC-002",
-    "sens": "TTC_vers_HT",
-    "regime": "reduit",
-    "input_ttc": 105.50,
-    "expected_ht": 100.00,
-    "expected_tva": 5.50
-  }
-]
-```
+Un restaurant facture 8 000 € HT de plats sur place (TVA 10 %) et 2 000 € HT de plats à emporter (TVA 10 % également depuis 2014, sauf pour les boissons alcoolisées qui restent à 20 %).
 
-Ce format est volontairement plat : lisible par un humain, parsable par `jq`, importable dans tout framework de test (Vitest, Jest, Mocha). Les contributeurs peuvent étendre le dataset avec des cas limites — montants nuls, taux DOM, lignes multi-taux — sans modifier le module de calcul.
+TVA collectée mensuelle (cas sans alcool) : (8 000 + 2 000) × 10 % = **1 000 €**
 
----
+Si le restaurant a acheté 4 000 € HT de marchandises (taux 5,5 % pour les denrées alimentaires brutes) :
+TVA déductible : 4 000 × 5,5 % = **220 €**
 
-## Articulation avec la facturation électronique 2026
+TVA à reverser : 1 000 - 220 = **780 €**
 
-La réforme FE introduit deux rôles distincts : **émetteur** et **récepteur**, reliés par une plateforme de dématérialisation partenaire (PDP) ou le portail public Chorus Pro. Dans les deux cas, les montants TVA sont portés par des champs typés `xsd:decimal` — les erreurs d'arrondi au centième génèrent des rejets automatiques.
+Pour [consulter la formule complète et son application aux opérations mixtes intra-UE](https://macalculatriceenligne.com/finance/impots/calcul-tva/), il faut distinguer également l'auto-liquidation pour les opérations de sous-traitance dans le bâtiment (article 283-2 nonies du CGI) et les ventes à distance intracommunautaires.
 
-Le module `tva-master.js` ci-dessus peut être branché directement dans un générateur Factur-X côté Node.js, ou compilé via esbuild pour un usage navigateur dans un formulaire de pré-facturation. La logique reste identique ; seul le contexte d'exécution change.
+## Sources
 
-Pour vérifier manuellement n'importe quelle valeur avant intégration dans un pipeline, un [outil officiel de référence](https://macalculatriceenligne.com/finance/impots/calcul-tva/) permet de croiser les résultats sans écrire une ligne de code.
+Code général des impôts articles 256 à 298 (TVA), Loi de finances 2024-1039 article 91 modifiée par LF 2026-103 article 26 sur la facturation électronique, instruction DGFiP BOI-TVA, rapport Cour des comptes "Lutte contre la fraude TVA" 2024, plateforme PPF documentation technique 2026.
 
----
+— Mehdi Kabbaj
 
-## Contribuer
-
-Le dépôt suit une convention simple : toute PR doit inclure au moins un cas de test JSON dans `datasets/tva-cases.json` accompagnant le code modifié. Les issues portant le label `FE-2026` tracent les travaux de conformité en cours — parsing Factur-X, validation schématron, mapping CII/UBL.
-
-La cible pour la version `1.0.0` : couvrir 100 % des régimes TVA applicables en France métropolitaine et en DOM, avec un rapport de couverture publié via GitHub Actions.
-
----
-
-*Dernier commit testé sous Node.js 20 LTS et navigateurs evergreen. Aucune dépendance externe requise.*
-
-— Mehdi
 
 ## Pages détaillées
 
