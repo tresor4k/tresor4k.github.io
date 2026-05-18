@@ -1,46 +1,78 @@
 # Santé
 
-# IMC et open data : ce que les datasets publics révèlent sur l'indice de masse corporelle
+# IMC 2026 : pourquoi cet indicateur fonctionne pour la population et échoue à l'échelle individuelle
 
-## Observations agrégées 2020-2026 sur l'IMC général, disponibles en format CSV sous licence CC-BY
+L'Indice de Masse Corporelle a été conçu par le statisticien belge Adolphe Quetelet en 1832 — il ne s'appelait alors pas IMC mais "indice de Quetelet" — comme un instrument d'analyse démographique. Près de deux siècles plus tard, il reste l'outil de référence des grandes études épidémiologiques mondiales (OMS, Inserm, CDC) tout en faisant l'objet de critiques croissantes pour son usage en consultation individuelle.
 
----
+*Cet article a vocation pédagogique. Il ne remplace pas l'avis d'un médecin ou d'un diététicien pour évaluer votre situation personnelle.*
 
-Les données de santé populationnelle autour de l'indice de masse corporelle constituent aujourd'hui l'un des corpus les plus exploités en épidémiologie descriptive. Depuis plusieurs années, des organismes publics — OMS, Eurostat, instituts nationaux de statistiques — publient des jeux de données structurés, couvrant les distributions d'IMC par tranche d'âge, par territoire, par genre, et parfois par niveau socio-économique. Ces datasets, souvent diffusés en CSV ou JSON avec des licences Creative Commons Attribution (CC-BY), permettent à des développeurs, chercheurs ou data scientists de croiser, nettoyer et visualiser des tendances de corpulence à l'échelle de populations entières.
+## La formule de Quetelet et son interprétation par seuils
 
-### Ce que l'on entend exactement par IMC
+L'IMC est calculé en divisant le poids (en kilogrammes) par le carré de la taille (en mètres) :
 
-L'indice de masse corporelle est une valeur calculée à partir du rapport entre le poids (en kilogrammes) et le carré de la taille (en mètres). Ce rapport, noté kg/m², produit un indicateur simple permettant de classer un individu dans des catégories standardisées de corpulence. Il ne mesure pas directement la composition corporelle ni la masse grasse, mais il offre une proxy statistique cohérente à l'échelle des grandes cohortes. C'est précisément pour cette raison qu'il est retenu dans les datasets open source : sa construction est reproductible, ses variables d'entrée sont peu nombreuses, et les résultats sont comparables entre pays dès lors que les conventions de codage sont homogènes.
+**IMC = poids (kg) / taille² (m)**
 
-Un point technique souvent négligé dans le traitement des données brutes : les fichiers CSV issus des enquêtes de santé intègrent fréquemment des valeurs auto-déclarées, ce qui introduit un biais systématique connu — les individus ont tendance à sous-estimer leur poids et à surestimer leur taille, entraînant une légère compression vers le bas de l'IMC observé. Toute analyse rigoureuse d'un tel dataset devra documenter cette limite dans les métadonnées ou le notebook associé.
+Pour une personne de 70 kg mesurant 1,72 m : IMC = 70 / (1,72²) = 70 / 2,9584 = **23,66 kg/m²**.
 
-### Structure typique d'un dataset IMC open source
+La classification OMS, inchangée depuis 1995, distingue cinq zones :
+- IMC < 18,5 : insuffisance pondérale (sous-poids)
+- 18,5 ≤ IMC < 25 : corpulence normale
+- 25 ≤ IMC < 30 : surpoids
+- 30 ≤ IMC < 35 : obésité de classe I (modérée)
+- 35 ≤ IMC < 40 : obésité de classe II (sévère)
+- IMC ≥ 40 : obésité de classe III (massive ou morbide)
 
-Un fichier CSV bien structuré autour de l'IMC contiendra en général les colonnes suivantes : un identifiant anonymisé de répondant, l'année de collecte, la tranche d'âge (codée en intervalles), le sexe biologique déclaré, la valeur d'IMC calculée ou brute (poids et taille séparés), la région géographique sous forme de code ISO ou NUTS, et éventuellement une pondération statistique servant à redresser l'échantillon sur la population cible.
+Ces seuils ont été établis à partir de l'observation que la mortalité toutes causes confondues augmente significativement au-delà de 25 et explose au-delà de 30, selon des cohortes prospectives portant sur des millions de personnes principalement d'origine européenne.
 
-Les licences CC-BY autorisent la réutilisation, la transformation et la redistribution des données à condition de citer la source d'origine. Cela signifie qu'un développeur peut légalement charger ces fichiers dans un pipeline Python ou R, les transformer, les visualiser ou les intégrer dans un outil tiers — à condition de conserver la mention d'attribution. Cette liberté d'usage explique l'essor des projets open source autour de la santé métabolique sur des plateformes de versionnement comme GitHub.
+## Les limites individuelles de l'IMC
 
-### Lire un jeu de données : l'exemple de la distribution par décile
+L'IMC ne distingue pas la masse grasse de la masse maigre (muscles, os, organes). Un sportif de haut niveau peut afficher un IMC de 28 (qualifié de "surpoids" par la classification OMS) tout en ayant une composition corporelle saine, voire idéale. Inversement, une personne sédentaire avec peu de masse musculaire peut avoir un IMC de 22 (normal) tout en présentant une accumulation excessive de graisse viscérale.
 
-Imaginons un dataset fictif mais structurellement réaliste : sur 10 000 observations adultes collectées entre 2020 et 2023, la médiane d'IMC se situe à 25,4 kg/m² et le 90e percentile atteint 34,1 kg/m². Cette distribution asymétrique vers la droite est typique des cohortes populationnelles dans les pays à revenu élevé. Elle implique qu'un simple calcul de moyenne serait trompeur : la valeur centrale ne représente pas fidèlement la structure de la distribution, qui présente une queue longue vers les valeurs élevées. Dans ce contexte, les notebooks analytiques publiés en open source utilisent quasi-systématiquement des représentations par boxplot ou violon plot pour illustrer la dispersion réelle.
+Une étude publiée dans *The Lancet Diabetes & Endocrinology* en 2024 a montré que **chez les femmes ménopausées**, l'IMC sous-estime la prévalence de l'obésité de 18 % par rapport à la mesure directe de la masse grasse par DEXA (absorptiométrie biénergétique à rayons X).
 
-Pour qui souhaite comprendre concrètement comment se situe un individu dans cette distribution, ou simplement vérifier la mécanique du calcul avant de plonger dans les données agrégées, une [simulation pas à pas](https://macalculatriceenligne.com/sante/calcul-imc/) permet de visualiser le résultat en temps réel à partir de valeurs personnelles.
+L'IMC est également inadapté aux populations suivantes :
+- Personnes âgées (> 70 ans) : seuil de surpoids souvent corrigé vers le haut, jusqu'à 27
+- Enfants et adolescents : courbes de référence spécifiques par âge (courbes IOTF ou courbes françaises Aphidpax)
+- Femmes enceintes : non applicable
+- Athlètes de force (rugby, haltérophilie, culturisme) : surévaluation systématique
+- Personnes amputées : sous-évaluation, nécessite une correction selon la masse perdue
 
-### Construire un pipeline de traitement minimal
+## L'IMC ajusté et les alternatives
 
-Sur GitHub, les dépôts dédiés à l'analyse de l'IMC adoptent généralement une architecture en trois fichiers : le jeu de données brut en CSV, un notebook Jupyter (ou un script R Markdown) documentant les étapes de nettoyage et de transformation, et un fichier README précisant la licence, la source originale et les choix méthodologiques. Ce découpage favorise la reproductibilité.
+Plusieurs indicateurs corrigent partiellement les limites de l'IMC :
 
-Les étapes de nettoyage les plus fréquentes incluent la gestion des valeurs manquantes (imputation par médiane sur la tranche d'âge correspondante, ou exclusion si le taux de manque dépasse un seuil défini), la détection des outliers biologiquement impossibles (un IMC inférieur à 10 ou supérieur à 80 dans un dataset adulte signale généralement une erreur de saisie), et la standardisation des unités pour les datasets mixtes intégrant des données en unités impériales.
+**Le rapport tour de taille / tour de hanches (RTH)** est plus précis pour évaluer le risque cardiovasculaire. Seuils OMS : > 0,90 chez l'homme et > 0,85 chez la femme = risque accru.
 
-### Pourquoi ces données intéressent au-delà des épidémiologistes
+**Le tour de taille seul** est l'indicateur le plus simple : > 94 cm chez l'homme et > 80 cm chez la femme = facteur de risque métabolique (HAS recommandations 2018).
 
-Les jeux de données open source sur l'IMC trouvent aujourd'hui des usages inattendus : modélisation actuarielle dans le secteur de l'assurance, entraînement de modèles de machine learning pour la prédiction de risques métaboliques, design de politiques publiques de prévention ou encore benchmarking d'interventions nutritionnelles. La richesse de ces applications repose entièrement sur la qualité et la transparence du jeu de données initial. Un dataset mal documenté, sans métadonnées sur le protocole de collecte ou sur les biais connus, est inutilisable dans un contexte de recherche sérieux — quelle que soit la licence attachée.
+**Le pourcentage de masse grasse** mesuré par bioimpédancemétrie (balance professionnelle) ou DEXA : normes 12-18 % chez l'homme adulte sain, 18-28 % chez la femme adulte saine.
 
-La valeur scientifique d'un corpus open source sur l'IMC ne tient donc pas tant à la quantité d'observations qu'à la rigueur de sa documentation.
+**L'IMC ajusté à la composition corporelle** (Body Roundness Index, BRI) intègre la circonférence abdominale : il est en croissance d'usage en médecine préventive depuis 2020.
 
----
+## Cas pratique : femme de 35 ans, 165 cm, 68 kg
 
-— Claire
+IMC standard : 68 / (1,65²) = 68 / 2,7225 = **24,98 kg/m²** → corpulence normale en limite haute.
+
+Si la même personne mesure 78 cm de tour de taille et 102 cm de tour de hanches :
+RTH : 78 / 102 = **0,76** → en dessous du seuil OMS pour la femme (0,85)
+Tour de taille : 78 cm → en dessous du seuil HAS (80 cm)
+
+Conclusion : cette personne est métaboliquement saine selon les trois indicateurs. Son IMC à 24,98, proche du seuil de surpoids, n'est pas un signal d'alerte clinique.
+
+## L'évolution avec l'âge
+
+Une augmentation de poids modérée avec l'âge n'est pas nécessairement pathologique. Plusieurs études (notamment l'étude française E3N portant sur 100 000 femmes suivies depuis 1990) montrent qu'un IMC de 25-27 chez les personnes âgées de plus de 65 ans est associé à une mortalité plus faible qu'un IMC strictement normal (18,5-25). C'est le phénomène dit "paradoxe de l'obésité gériatrique".
+
+À l'inverse, un IMC > 30 reste associé à un excès de mortalité à tout âge adulte, principalement par augmentation des risques cardiovasculaire, métabolique et cancérigène.
+
+Pour [accéder à la formule complète avec interprétation par tranche d'âge et sexe](https://macalculatriceenligne.com/sante/calcul-imc/), il faut renseigner non seulement le poids et la taille, mais aussi l'âge et idéalement le tour de taille pour un calcul ajusté du risque cardiométabolique.
+
+## Sources
+
+OMS, "Obésité et surpoids", rapport mondial 2024 ; HAS, "Surpoids et obésité de l'adulte : prise en charge médicale de premier recours", recommandations 2011 actualisées 2019 ; Inserm, étude E3N (1990-2024) suivi de cohorte 100 000 femmes ; *The Lancet Diabetes & Endocrinology*, "BMI underestimates obesity in postmenopausal women", 2024 ; Quetelet A., "Sur l'homme et le développement de ses facultés", 1835.
+
+— Claire Dubois
+
 
 ## Pages détaillées
 
