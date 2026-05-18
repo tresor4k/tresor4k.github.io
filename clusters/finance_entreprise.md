@@ -1,123 +1,72 @@
 # Finance / Entreprise + Auto-entrepreneur
 
-# Calcul des charges auto-entrepreneur 2026 : implémentation open source en JavaScript pur
+# Charges auto-entrepreneur 2026 : les six taux distincts qu'il faut connaître avant de facturer
 
-Code ouvert : la méthode de calcul des charges AE 2026 n'a rien de mystérieux — elle repose sur des taux fixes appliqués au chiffre d'affaires brut, sans déduction préalable. Ce principe simple se prête parfaitement à une implémentation modulaire et reproductible. Voici comment structurer le moteur de calcul de façon transparente, testable et contribuable.
+Le régime de la micro-entreprise — communément appelé "auto-entrepreneur" — est le statut juridique le plus simple en France, mais son apparente simplicité dissimule une grille de cotisations à six taux distincts, dont la lecture détermine la rentabilité réelle de l'activité. Beaucoup de micro-entrepreneurs découvrent en cours d'année qu'ils paient plus de cotisations qu'ils ne l'avaient anticipé, faute d'avoir distingué leur activité de la bonne catégorie.
 
----
+## Les quatre grandes catégories d'activité
 
-## Pourquoi open-sourcer ce calcul ?
+L'URSSAF distingue quatre catégories d'activité avec des taux de cotisations sociales spécifiques, plus une cinquième catégorie spéciale pour les locations meublées de tourisme depuis 2024.
 
-Les simulateurs fiscaux grand public fonctionnent souvent comme des boîtes noires : un formulaire, un résultat, aucune trace de la logique intermédiaire. Or, pour un auto-entrepreneur qui souhaite auditer ses propres projections ou intégrer le calcul dans un outil métier (dashboard comptable, application de facturation légère, pipeline de données RH), accéder au code brut est une nécessité concrète.
+**Achat-revente de marchandises et fourniture d'hébergement (sauf meublés de tourisme)** : 12,3 % du chiffre d'affaires. Plafond annuel : **188 700 €**. Concerne les commerçants, les e-commerçants, les hôteliers, les chambres d'hôtes.
 
-Publier ce type de logique sur GitHub Pages, documentée et versionnée, permet trois choses simultanément : partager la méthode avec la communauté développeur, l'exposer à la revue par les pairs et constituer un dataset de référence pour des projets de data science sur la fiscalité des indépendants.
+**Prestations de services BIC (commerciales et artisanales)** : 21,2 %. Plafond annuel : **77 700 €**. Concerne les coiffeurs à domicile, les artisans du bâtiment, les agents commerciaux, les services à la personne.
 
----
+**Prestations de services BNC (libérales non réglementées)** : 21,1 %. Plafond annuel : **77 700 €**. Concerne les consultants, les graphistes, les développeurs freelance, les formateurs, les rédacteurs.
 
-## Architecture du module `charges-ae-2026.js`
+**Professions libérales réglementées affiliées CIPAV** : 21,2 % (depuis la réforme 2024). Plafond annuel : 77 700 €. Concerne architectes, géomètres, ostéopathes hors-Ordre, psychologues, et autres professions inscrites sur la liste limitative CIPAV.
 
-Le fichier peut être organisé en deux couches distinctes :
+**Locations meublées de tourisme classées** : 6,0 % depuis la loi de finances 2026-103. Plafond annuel : 188 700 €.
 
-**1. Le dataset de taux**
+## La CFP : cotisation pour la formation professionnelle
 
-```javascript
-const TAUX_AE_2026 = {
-  bic_vente: 0.128,       // Vente de marchandises
-  bic_service: 0.212,     // Prestations commerciales / artisanat
-  bnc: 0.212,             // Professions libérales (régime général)
-  bnc_cipav: 0.212,       // Professions libérales CIPAV
-  versement_lib_bic_vente: 0.01,
-  versement_lib_bic_service: 0.017,
-  versement_lib_bnc: 0.022
-};
-```
+En complément des cotisations sociales principales, le micro-entrepreneur s'acquitte d'une **Cotisation pour la Formation Professionnelle (CFP)** :
+- 0,1 % du CA pour les commerçants
+- 0,2 % du CA pour les libéraux et certaines activités artisanales
+- 0,3 % du CA pour les artisans
 
-Ces constantes constituent à elles seules un mini-dataset versionnés : en les isolant dans un objet dédié, tout changement de barème en 2027 sera tracé dans le diff Git comme une modification atomique, lisible par n'importe quel contributeur sans avoir à parcourir la logique métier.
+Cette cotisation finance les droits CPF que le micro-entrepreneur peut ensuite mobiliser pour suivre des formations professionnelles.
 
-**2. La fonction de calcul**
+## L'impôt sur le revenu : barème classique ou versement libératoire
 
-```javascript
-function calculerChargesAE(ca, categorie, versementLiberatoire = false) {
-  if (typeof ca !== 'number' || ca < 0) {
-    throw new TypeError('Le chiffre d\'affaires doit être un nombre positif');
-  }
+Au-delà des cotisations sociales URSSAF, le micro-entrepreneur paie l'impôt sur le revenu sur son chiffre d'affaires diminué de l'abattement forfaitaire applicable à sa catégorie :
+- Abattement de 71 % pour les ventes
+- Abattement de 50 % pour les prestations BIC
+- Abattement de 34 % pour les prestations BNC
 
-  const tauxCotisations = TAUX_AE_2026[categorie];
-  if (!tauxCotisations) {
-    throw new RangeError(`Catégorie inconnue : ${categorie}`);
-  }
+Exemple : un consultant en BNC qui facture 50 000 € de CA annuel a un revenu imposable de 50 000 × (1 - 0,34) = **33 000 €**, sur lequel s'applique le barème progressif de l'IR.
 
-  const charges = ca * tauxCotisations;
-  const impot = versementLiberatoire
-    ? ca * (TAUX_AE_2026[`versement_lib_${categorie}`] || 0)
-    : null;
+Alternative : le **versement libératoire de l'IR**, payé en même temps que les cotisations sociales URSSAF, avec un taux fixe selon la catégorie : 1 % pour les ventes, 1,7 % pour les BIC, 2,2 % pour les BNC. Cette option est intéressante pour les hauts revenus déjà fortement imposés sur d'autres sources, mais elle requiert un revenu fiscal de référence inférieur à un seuil annuel (28 797 € par part fiscale en 2026 pour pouvoir opter).
 
-  return {
-    ca,
-    categorie,
-    tauxApplique: tauxCotisations,
-    chargesSociales: parseFloat(charges.toFixed(2)),
-    impotLiberatoire: impot !== null ? parseFloat(impot.toFixed(2)) : 'Non applicable',
-    netEstime: parseFloat((ca - charges - (impot || 0)).toFixed(2))
-  };
-}
-```
+## Cas pratique : développeur freelance à 60 000 € de CA
 
-La valeur de retour structurée en objet facilite l'alimentation directe d'un tableau HTML, d'un export CSV ou d'une visualisation D3.js.
+Soit un développeur freelance déclarant 60 000 € de CA en 2026, en BNC libéral non-réglementé.
 
----
+Cotisations URSSAF (21,1 % du CA) : 60 000 × 21,1 % = **12 660 €**
+CFP (0,2 %) : 60 000 × 0,2 % = **120 €**
+Total cotisations sociales URSSAF : **12 780 €**
 
-## Exemple de sortie : prestataire de services à 3 500 € de CA mensuel
+Revenu imposable IR (après abattement 34 %) : 60 000 × 66 % = **39 600 €**
 
-En appelant `calculerChargesAE(3500, 'bic_service', true)`, le moteur produit :
+Si le développeur a opté pour le versement libératoire (2,2 %) :
+IR libératoire annuel : 60 000 × 2,2 % = **1 320 €**
 
-```json
-{
-  "ca": 3500,
-  "categorie": "bic_service",
-  "tauxApplique": 0.212,
-  "chargesSociales": 742,
-  "impotLiberatoire": 59.5,
-  "netEstime": 2698.5
-}
-```
+Total prélèvements (URSSAF + IR libératoire) : 14 100 €
+Taux de prélèvement effectif sur CA : 14 100 / 60 000 = **23,5 %**
+Net disponible avant frais professionnels : 60 000 - 14 100 = **45 900 €**
 
-Sur 3 500 € encaissés, l'auto-entrepreneur en prestation de services conserve environ 2 698,50 € après cotisations sociales et versement libératoire — soit un taux de prélèvement global d'un peu moins de 23 %. Ce résultat n'est qu'une estimation : l'ACCRE, la franchise de TVA ou le régime transitoire de début d'activité peuvent moduler ces valeurs. Pour une vérification interactif et détaillée, une simulation pas à pas est disponible en ligne et couvre précisément ces cas particuliers.
+## La franchise de TVA : le seuil de 39 100 € à connaître
 
----
+Depuis le 1er mars 2025 (LF 2025), le seuil de franchise de TVA pour les prestations de services est passé à **39 100 €** (au lieu de 36 800 € en 2024). Au-delà, le micro-entrepreneur doit collecter la TVA sur ses factures, la reverser à l'État, et facturer hors taxes à ses clients professionnels qui pourront la récupérer.
 
-## Intégration dans un pipeline de données
+Pour [accéder au simulateur 2026 à jour incluant tous les paramètres](https://macalculatriceenligne.com/finance/calcul-charges-auto-entrepreneur/), il faut renseigner la catégorie d'activité, le CA prévisionnel, l'option versement libératoire ou non, et éventuellement le statut ACRE (réduction de 50 % des cotisations la première année pour les créateurs sous conditions).
 
-Le module peut être importé en CommonJS (`require`) ou en ES Modules (`import`) selon l'environnement cible. Pour des usages data, il se branche directement sur un tableau de données brutes :
+## Sources
 
-```javascript
-const projections = [1200, 2400, 3500, 5000, 8000];
+Code de la sécurité sociale articles L613-1 et suivants, Loi de finances 2026-103 articles 1 et 18 (locations meublées), arrêté URSSAF du 1er janvier 2026 sur les taux, instruction DGFiP BOI-BIC-DECLA-10-40-10, INSEE bulletin micro-entrepreneurs 2024.
 
-const resultats = projections.map(ca =>
-  calculerChargesAE(ca, 'bnc', false)
-);
+— Mehdi Kabbaj
 
-console.table(resultats.map(r => ({
-  CA: r.ca,
-  Charges: r.chargesSociales,
-  Net: r.netEstime,
-  'Taux effectif': `${((r.chargesSociales / r.ca) * 100).toFixed(1)}%`
-})));
-```
-
-Ce type de snippet est directement exploitable dans un notebook Observable, dans un environnement Jupyter avec le kernel JavaScript, ou dans un script Node.js alimentant une API REST légère. La logique étant pure (aucun effet de bord, aucun appel réseau), elle est triviale à tester unitairement avec Jest ou Vitest.
-
----
-
-## Contribuer et maintenir la cohérence des barèmes
-
-Le vrai enjeu d'un tel dépôt n'est pas technique — il est documentaire. Chaque mise à jour légale doit s'accompagner d'une référence à la source réglementaire (décret, BOSS, LFSS) dans le message de commit. Une convention de nommage cohérente (`TAUX_AE_AAAA`) permet de maintenir plusieurs années en parallèle sans collision de noms, ce qui facilite les comparaisons historiques pour les analyses longitudinales.
-
-Publié sous licence MIT, ce module peut être réutilisé librement dans des projets associatifs, des outils pédagogiques ou des applications métier, tant que la mention des barèmes source reste explicite dans la documentation.
-
----
-
-— Mehdi
 
 ## Pages détaillées
 
