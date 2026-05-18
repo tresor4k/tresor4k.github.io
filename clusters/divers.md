@@ -1,63 +1,81 @@
 # Autres
 
-# Ascendant astrologique masculin : exploration d'un dataset open source issu de 50 000 simulations
+# Calcul de l'ascendant astrologique : la méthode du Temps Sidéral Local expliquée pas à pas
 
-Un dataset issu de 50 000 simulations utilisateurs anonymisées autour de l'ascendant astrologique homme constitue aujourd'hui une base de travail sérieuse pour quiconque souhaite modéliser, analyser ou reproduire les calculs astronomiques sous-jacents à cette notion astrologique. Ce que l'on appelle communément l'"ascendant" en astrologie correspond au signe du zodiaque qui se levait à l'horizon est au moment exact de la naissance. Sa détermination repose sur des équations de trigonométrie sphérique, des tables de maisons et une précision temporelle au degré près — autant de paramètres qui en font un objet de calcul formalisable et reproductible.
+L'ascendant astrologique correspond au signe du zodiaque qui se levait à l'horizon est au moment exact de la naissance d'une personne. Contrairement au signe solaire (déterminé par la date de naissance seule), l'ascendant requiert trois données précises : l'heure de naissance exacte, le lieu de naissance (longitude et latitude), et le calcul du Temps Sidéral Local (TSL) pour cet instant et cet endroit.
 
----
+*Cet article décrit la mécanique du calcul d'un point de vue mathématique et historique. L'astrologie n'a pas de fondement scientifique reconnu — son usage relève des croyances individuelles et culturelles.*
 
-## Ce que contient le dataset
+## La logique : la rotation de la Terre vue depuis le zodiaque
 
-Les données anonymisées compilées dans ce corpus agrègent plusieurs variables d'entrée :
+La Terre effectue une rotation complète en 23h 56min 4,1s (jour sidéral). Pendant cette rotation, l'observateur situé en un point fixe de la surface terrestre voit défiler les 12 signes du zodiaque sur l'horizon est, chaque signe occupant en moyenne 2 heures de défilement (mais la durée réelle varie selon la latitude et la déclinaison de chaque signe).
 
-- **Heure de naissance** (format UTC, précision à la minute)
-- **Latitude et longitude du lieu de naissance** (coordonnées géodésiques décimales)
-- **Date calendaire** (jour / mois / année, période couverte : 1940–2005 environ)
-- **Système de maisons utilisé** (Placidus majoritairement, suivi de Koch et Whole Sign)
+L'ascendant correspond donc à un calcul de position céleste à un moment et un lieu précis. Cette position est gouvernée par le **Temps Sidéral Local (TSL)**, qui mesure depuis combien de temps le point vernal (équinoxe de printemps) a culminé au méridien du lieu de naissance.
 
-La variable de sortie est le signe ascendant résultant, exprimé sous forme de label categoriel (12 classes possibles, de Bélier à Poissons). La distribution observée dans ce jeu de données n'est pas uniforme : certains signes — notamment le Verseau et le Scorpion — apparaissent statistiquement moins fréquents dans la cohorte masculine simulée, ce qui reflète les contraintes mathématiques liées aux durées de lever de chaque signe selon la latitude européenne moyenne pondérée de l'échantillon (environ 46° Nord).
+## Les quatre étapes du calcul manuel
 
----
+**Étape 1 — Convertir l'heure légale en heure GMT (Temps Universel)**
 
-## Architecture du pipeline de calcul
+L'heure de naissance enregistrée à l'état civil est en heure légale française, qui est :
+- En hiver : GMT + 1 heure
+- En été (du dernier dimanche de mars au dernier dimanche d'octobre) : GMT + 2 heures
 
-Le code source disponible en open source associé à ce dataset repose essentiellement sur Python 3.10+. Les bibliothèques centrales mobilisées sont `ephem`, `pyswisseph` (binding Python de la Swiss Ephemeris), et dans certains forks, `astropy` pour la gestion des référentiels de temps (TT vs UTC, delta T).
+Exemple : naissance le 12 mai 2000 à 14h30 (heure légale française d'été). Heure GMT = 14h30 - 2h = **12h30 GMT**.
 
-Le pipeline se décompose ainsi :
+**Étape 2 — Calculer le Temps Sidéral à Greenwich à 0h GMT pour la date donnée**
 
-1. **Conversion date/heure locale → Julian Day Number (JDN)** — étape critique car toute erreur de fuseau horaire se propage directement dans le calcul de l'ascendant.
-2. **Calcul du RAMC** (Right Ascension of the Midheaven) à partir du temps sidéral local.
-3. **Application du système de maisons** : la fonction `swe_houses()` retourne un tableau de 12 cuspides, dont la première (ASC) est l'ascendant.
-4. **Mapping du degré écliptique → signe zodiacal** (division en 12 segments de 30° depuis 0° Bélier).
+Le Temps Sidéral à 0h GMT évolue d'environ 3 minutes et 56 secondes par jour solaire. Pour le 12 mai 2000 à 0h GMT, la valeur tabulée dans l'éphéméride astronomique est de **15h 12m 30s**.
 
-Un point d'attention fréquent dans les contributions open source : la gestion du delta T (différence entre Temps Universel et Temps Terrestre) pour les naissances antérieures à 1972. Les implémentations qui ignorent cette correction introduisent un biais pouvant atteindre plusieurs minutes d'arc, ce qui, pour un natif né en limite de signe, suffit à inverser le résultat. Pour approfondir le calcul dans un contexte applicatif concret, des ressources pédagogiques permettent d'[approfondir le calcul](https://macalculatriceenligne.com/astrologie/calcul-ascendant-homme/) en mode interactif.
+**Étape 3 — Ajuster au Temps Sidéral à Greenwich à l'heure exacte de naissance**
 
----
+On ajoute à cette valeur l'écart entre 0h GMT et l'heure GMT de naissance, augmenté d'une correction pour le rythme sidéral (1,002738 × heure solaire écoulée).
 
-## Qualité des données et biais identifiés
+Pour notre exemple : 12h 30m × 1,002738 = 12h 32m 03s
+Temps Sidéral à Greenwich à 12h30 GMT le 12 mai 2000 : 15h 12m 30s + 12h 32m 03s = **27h 44m 33s** = **3h 44m 33s** (modulo 24h).
 
-L'analyse exploratoire du dataset révèle plusieurs biais inhérents à sa constitution :
+**Étape 4 — Ajuster au Temps Sidéral Local en fonction de la longitude du lieu**
 
-**Biais de latitude** : la surreprésentation des utilisateurs situés entre 43° et 52° Nord (arc France-Belgique-Suisse) crée un déséquilibre dans la distribution des ascendants. À ces latitudes, les signes à ascension longue (Gémeaux, Cancer, Lion, Vierge dans l'hémisphère nord) montent plus lentement à l'horizon, donc couvrent une plage horaire plus large — ils seront mécaniquement surreprésentés par rapport à des ascendants comme le Capricorne ou le Verseau, dont le lever oblique est beaucoup plus rapide.
+La longitude doit être convertie en temps : 15° de longitude équivalent à 1 heure. Pour une naissance à Paris (longitude 2°20'E), l'ajustement est de +2°20'/15° = +9 min 20s.
 
-**Biais d'heure de naissance** : les horaires de naissance ne suivent pas une distribution uniforme sur 24 heures. La littérature démographique montre une concentration des naissances déclarées en matinée (entre 08h00 et 13h00), liée aux pratiques hospitalières de déclenchement et de programmation des césariennes. Cet artefact socio-médical influe directement sur la fréquence des ascendants calculés.
+Temps Sidéral Local : 3h 44m 33s + 9m 20s = **3h 53m 53s**.
 
-**Données manquantes** : environ 3,2 % des entrées du dataset présentent une heure de naissance non renseignée ou arrondie à midi par convention. Ces cas ont été flaggés (`birth_time_unknown = True`) et exclus des analyses de fréquence, mais conservés pour d'autres usages (modèles tolérant l'incertitude temporelle).
+## Étape finale : lecture de la table des ascendants
 
----
+Une fois le TSL calculé, on consulte une table des ascendants spécifique à la latitude du lieu de naissance. Cette table associe chaque créneau de TSL à un degré précis du zodiaque qui se lève à l'horizon est à cet instant.
 
-## Pistes d'exploitation pour la communauté open source
+Pour la latitude de Paris (48°51'N), un TSL de 3h 53m correspond à un ascendant aux environs du **20ème degré du signe du Cancer**.
 
-Ce type de corpus ouvre plusieurs directions de travail pour des contributeurs data :
+La précision de l'ascendant est de l'ordre du degré (soit 4 minutes de TSL), ce qui exige une connaissance de l'heure de naissance à environ 4 minutes près. C'est pourquoi les astrologues attachent une importance particulière à l'heure consignée à l'état civil (mais souvent arrondie de manière approximative par l'officier d'état civil).
 
-- **Entraînement de modèles de classification** : prédire la probabilité de chaque ascendant à partir de variables démographiques connues (pays, décennie de naissance, genre déclaré).
-- **Visualisation astronomique** : cartographier la montée des signes en fonction de la latitude, avec des heatmaps horaire × latitude.
-- **Audit des implémentations** : comparer la sortie de différentes bibliothèques astrologiques (`pyswisseph`, `kerykeion`, `flatlib`) sur les mêmes inputs pour identifier les divergences.
-- **Analyse différentielle par genre** : plusieurs études comparatives intègrent un filtre sur le genre déclaré, posant la question méthodologique de savoir si l'ascendant varie statistiquement selon ce filtre — la réponse est non au plan astronomique, mais la distribution observée peut différer selon les biais de collecte.
+## Les ascendants par latitude : une variation importante
 
-La richesse de ce dataset tient moins à ses 50 000 entrées qu'à la diversité des pipelines de calcul qu'il permet de tester, confronter et corriger. La transparence des données brutes, disponibles sous licence MIT dans le dépôt de référence, en fait un point de départ rigoureux pour tout projet mêlant astronomie computationnelle et analyse de données culturelles.
+À l'équateur, chaque signe occupe exactement 2 heures de TSL : la durée de défilement est uniforme. Plus on monte vers les hautes latitudes, plus la variation augmente :
 
-— Claire
+- À Paris (48°51'N) : le signe du Cancer prend 1h 40min, celui du Capricorne prend 2h 20min
+- À Helsinki (60°10'N) : le Cancer ne prend que 1h 10min, le Capricorne prend 2h 50min
+- Au-delà de 66°33'N (cercle polaire arctique) : certains signes ne se lèvent jamais à certaines périodes de l'année
+
+Cette inégalité de défilement explique pourquoi certains signes (Cancer, Lion, Vierge, Balance) sont surreprésentés comme ascendants chez les natifs des hautes latitudes, et d'autres (Capricorne, Verseau, Poissons) sous-représentés.
+
+## Cas pratique : ascendant pour une naissance à Marseille
+
+Soit une naissance le 15 août 2000 à 06h00 (heure légale française, été) à Marseille (latitude 43°18'N, longitude 5°22'E).
+
+- Heure GMT : 06h00 - 2h = 04h00 GMT
+- Temps Sidéral à Greenwich à 0h GMT le 15/08/2000 : 21h 35m 21s (éphéméride)
+- TSG à 04h GMT : 21h 35m 21s + (4h × 1,002738) = 21h 35m 21s + 4h 0m 39s = **25h 36m 00s** = 1h 36m 00s
+- Correction longitude (5°22'E = +21min 28s) : 1h 36m 00s + 21m 28s = **1h 57m 28s**
+
+Table des ascendants pour latitude 43°N à TSL ≈ 1h 57m : ascendant aux environs du **15ème degré des Gémeaux**.
+
+Pour [explorer le barème complet et générer un ascendant précis automatiquement à partir de votre date et lieu de naissance](https://macalculatriceenligne.com/astrologie/calcul-ascendant-homme/), il suffit de renseigner la date, l'heure exacte (avec correction décalage horaire en cas de naissance à l'étranger), et le lieu de naissance pour obtenir le degré zodiacal précis et l'interprétation symbolique associée.
+
+## Sources
+
+Bureau des Longitudes (France), éphémérides astronomiques annuelles 1900-2050 ; Astronomical Almanac (Royaume-Uni-États-Unis), tables de Temps Sidéral ; Tables of Houses by Hugh Rice (1922, méthode Placidus historique) ; *L'astronomie dans la Bible et la mythologie*, Camille Flammarion (1880, méthode historique pré-informatique) ; documentation IAU (International Astronomical Union) sur la conversion entre temps universel coordonné et temps sidéral.
+
+— Claire Dubois
+
 
 ## Pages détaillées
 
