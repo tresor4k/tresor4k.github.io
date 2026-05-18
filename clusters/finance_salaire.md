@@ -1,89 +1,58 @@
 # Finance / Salaire
 
-# Calcul de salaire : 4 modes implémentés en JavaScript pur — approche open data
+# Calcul du salaire net 2026 : ce qui change entre brut, net imposable, net à payer et net après impôt
 
-Code ouvert, méthode transparente : voici ce que signifie concrètement implémenter le calcul de salaire selon quatre modes distincts en JavaScript natif, sans dépendance externe, avec des données publiquement accessibles et vérifiables.
+Quatre montants distincts apparaissent sur un bulletin de paie français, et chacun signifie quelque chose de différent. Cette distinction, parfois mal expliquée par les services RH, est devenue critique depuis l'introduction du prélèvement à la source en 2019 et plus encore depuis les ajustements URSSAF 2026 sur la CSG-CRDS des hauts revenus.
 
-## Pourquoi parler de "4 modes" dans un contexte de calcul de salaire ?
+## Les quatre montants à connaître
 
-Le terme recouvre quatre approches computationnelles distinctes pour calculer une rémunération nette à partir d'un brut déclaré, ou inversement. Ces modes ne sont pas arbitraires : ils correspondent à des cas d'usage réels rencontrés par les développeurs qui construisent des outils RH, des simulateurs fiscaux ou des dashboards de paie.
+**Salaire brut** : c'est la rémunération avant tout prélèvement. C'est le montant inscrit dans le contrat de travail et celui qui sert de base à toutes les cotisations sociales. Pour un salarié au SMIC, il s'élève à 1 836,67 € bruts mensuels en 2026 (35 heures hebdomadaires, taux horaire de 12,11 €).
 
-- **Mode brut → net** : le plus fréquent. On part d'un salaire brut et on applique les taux de cotisations salariales pour obtenir le net imposable, puis le net à payer.
-- **Mode net → brut** : utile pour les négociations salariales. Le candidat annonce un net souhaité ; l'employeur veut connaître le coût brut correspondant. C'est une inversion de fonction, souvent résolue par itération ou par un ratio approximatif.
-- **Mode coût employeur → net** : vision globale du recrutement. Le budget total intègre les cotisations patronales. On part du haut de la pyramide pour descendre jusqu'au virement bancaire.
-- **Mode annuel → mensuel (et inversement)** : normalisation temporelle, indispensable dès qu'on compare des contrats à durée variable, du temps partiel, ou des primes exceptionnelles.
+**Salaire net avant impôt** : c'est le brut diminué des cotisations sociales salariales. Ces cotisations financent la sécurité sociale, la retraite, l'assurance chômage, la prévoyance et la formation. Le taux global salarial moyen pour un non-cadre du secteur privé est d'environ **22 % du brut** (varie de 21 % à 24 % selon la convention collective et les éventuels régimes de prévoyance complémentaire).
 
-## Architecture du dataset et du code source
+**Salaire net imposable** : c'est le net avant impôt + la part non déductible de la CSG-CRDS (2,4 % du brut). Cette ligne sert à calculer l'impôt sur le revenu. Elle apparaît en bas du bulletin avec la mention "net imposable cumulé annuel".
 
-Dans une approche open data rigoureuse, chaque paramètre du calcul doit être externalisé dans un fichier de configuration versionné — typiquement un `rates.json` ou `baremes.js` — commité dans le dépôt et mis à jour à chaque évolution réglementaire. Cela permet à n'importe quel contributeur de vérifier, comparer ou forker les valeurs sans toucher à la logique métier.
+**Salaire net à payer** : c'est le montant effectivement versé sur le compte bancaire après prélèvement à la source de l'impôt sur le revenu, application du forfait social éventuel, et retenue des avantages en nature monétisés.
 
-Un exemple de structure JSON pour stocker les taux de cotisations salariales :
+## Décomposition pour un salaire brut de 3 000 € (cadre, secteur privé)
 
-```json
-{
-  "cotisations_salariales": {
-    "assurance_maladie": 0.0000,
-    "retraite_base_tranche1": 0.0690,
-    "retraite_complementaire": 0.0315,
-    "chomage": 0.0000,
-    "csg_deductible": 0.0680,
-    "csg_non_deductible": 0.0240,
-    "crds": 0.0050
-  }
-}
-```
+Voici la chaîne des opérations pour un cadre au salaire brut de 3 000 € mensuel en 2026 (référence : taux Urssaf 2026, AGFF 0,86 %, APEC 0,036 %, contribution équilibre permanent 0,14 %) :
 
-Ces valeurs sont issues de sources publiques officielles. Le code qui les consomme reste agnostique : on passe le dataset en paramètre, et la fonction de calcul s'adapte sans modification. C'est le principe de l'inversion de dépendance appliqué à la fiscalité.
+- Brut : **3 000,00 €**
+- Cotisations sécurité sociale (maladie 0 %, vieillesse 6,90 % plafonnée + 0,40 % déplafonnée) : -218,90 €
+- Retraite complémentaire AGIRC-ARRCO (3,15 % sur tranche 1) : -94,50 €
+- Assurance chômage (employeur seul depuis 2019) : 0 €
+- CSG-CRDS (9,7 % sur 98,25 % du brut) : -285,90 €
+- Cotisations diverses (APEC, AGFF, prévoyance) : -42,00 €
 
-## Implémentation fonctionnelle en JavaScript pur
+Total cotisations salariales : **641,30 €** soit 21,4 % du brut.
 
-Voici la logique centrale du mode brut → net, écrite de façon délibérément lisible et testable unitairement :
+- Net avant impôt : 3 000,00 - 641,30 = **2 358,70 €**
+- Part CSG-CRDS non déductible (2,4 % du brut) : +72,00 €
+- Net imposable : **2 430,70 €**
 
-```javascript
-function calculateNetFromGross(grossSalary, rates) {
-  const assiette = grossSalary * 0.9825; // abattement forfaitaire CSG/CRDS
-  const cotisations = Object.values(rates.cotisations_salariales)
-    .reduce((acc, rate) => acc + (grossSalary * rate), 0);
-  const netImposable = grossSalary - cotisations;
-  return {
-    gross: grossSalary,
-    cotisations: parseFloat(cotisations.toFixed(2)),
-    netImposable: parseFloat(netImposable.toFixed(2)),
-    assietteCsgCrds: parseFloat(assiette.toFixed(2))
-  };
-}
-```
+Si le taux personnalisé de prélèvement à la source du salarié est de 9 % (cas d'un célibataire sans enfants à 30 000 € de revenus annuels nets) :
+- Prélèvement à la source : 2 430,70 × 9 % = **218,76 €**
+- Net à payer : 2 358,70 - 218,76 = **2 139,94 €**
 
-Cette approche fonctionnelle pure — pas d'état global, pas d'effet de bord — facilite le test automatisé. On peut brancher Jest ou Vitest dessus en deux lignes et vérifier la cohérence des sorties pour cent scénarios différents.
+## Les écarts entre cadres et non-cadres
 
-Pour le mode inverse (net → brut), une méthode itérative converge rapidement :
+Pour un même salaire brut, le cadre cotise davantage que le non-cadre, car il s'acquitte des cotisations AGIRC-ARRCO majorées sur la tranche 2 (au-delà de 3 925 € mensuels en 2026), de la contribution APEC, et de la cotisation de prévoyance complémentaire obligatoire de 1,50 % minimum (article 7 de l'avenant national interprofessionnel de 1947).
 
-```javascript
-function calculateGrossFromNet(targetNet, rates, tolerance = 0.01) {
-  let gross = targetNet / 0.78; // approximation initiale
-  for (let i = 0; i < 100; i++) {
-    const result = calculateNetFromGross(gross, rates);
-    const diff = result.netImposable - targetNet;
-    if (Math.abs(diff) < tolerance) break;
-    gross -= diff * 0.5; // descente de gradient simplifiée
-  }
-  return parseFloat(gross.toFixed(2));
-}
-```
+Concrètement, à 5 000 € brut mensuels, un cadre conservera environ **3 700 € net avant impôt** contre **3 750 € pour un non-cadre** dans le même secteur. L'écart se compense partiellement par les prestations retraite supérieures du cadre.
 
-## Versioning des barèmes : la vraie valeur ajoutée open source
+## Frais professionnels et abattement de 10 %
 
-Ce qui distingue un projet open data sérieux d'un simple script isolé, c'est la traçabilité des changements réglementaires. Chaque mise à jour du barème mérite un commit atomique avec un message explicite du type `feat(rates): update retraite complementaire Q1 2025`. Les utilisateurs du package peuvent alors pinpointer exactement quelle version du barème correspond à quelle période de paie — ce qui est décisif pour les recalculs rétroactifs ou les audits sociaux.
+Au moment de la déclaration d'impôts, le salarié bénéficie automatiquement d'un abattement forfaitaire de 10 % sur le salaire net imposable, plafonné à 14 171 € en 2026 (LF 2026 article 2). Cet abattement vise à couvrir les frais professionnels courants (transport domicile-travail, repas, vêtements de travail, formation). Au-delà de 6 000 km de déplacements professionnels annuels, l'option pour les frais réels devient mathématiquement plus avantageuse.
 
-Combiner ce dépôt avec une interface de démonstration interactive — même minimaliste, en HTML/CSS/JS vanilla hébergée sur GitHub Pages — transforme un outil technique en ressource pédagogique accessible. Pour valider vos propres implémentations ou tester manuellement un scénario précis avant de l'automatiser, une [simulation pas à pas](https://macalculatriceenligne.com/finance/salaire/calcul-salaire/) permet de confronter les sorties de votre code aux résultats attendus.
+## Convergence vers une simulation personnalisée
 
-## Ce que cette architecture permet
+Pour [explorer le barème complet et obtenir une simulation calibrée sur votre situation](https://macalculatriceenligne.com/finance/salaire/calcul-salaire/), il faut renseigner quatre paramètres : statut (cadre / non-cadre), tranche de salaire (impact sur le passage T1/T2 AGIRC-ARRCO), avantages en nature monétisés, et taux de prélèvement à la source personnalisé.
 
-Un développeur qui clone ce type de dépôt dispose immédiatement d'une base de calcul auditable, modifiable et extensible. Il peut ajouter un cinquième mode — calcul du SMIC horaire vers mensuel, gestion du temps partiel, simulation de prime — sans réécrire la logique existante. Il peut aussi contribuer en amont : corriger un taux, documenter une edge case, proposer un test manquant.
+Sources : Code de la sécurité sociale articles L241-1 et suivants, taux URSSAF 2026 publiés au BOSS le 1er janvier 2026, loi de finances 2026-103 article 2, accord AGIRC-ARRCO du 17 novembre 2017 mis à jour 2024, bulletins paie INSEE 2024 et 2025.
 
-C'est précisément cet esprit — rendre le calcul de paie lisible, collaboratif et indépendant de toute boîte noire propriétaire — qui justifie de publier ce type d'implémentation sous licence MIT sur une plateforme publique.
+— Mehdi Kabbaj
 
-— Mehdi
 
 ## Pages détaillées
 
