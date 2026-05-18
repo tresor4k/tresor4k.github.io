@@ -1,96 +1,75 @@
 # Grossesse
 
-# Implémenter l'entretien prénatal précoce (L2122-1) en JavaScript : approche open data
+# L'entretien prénatal précoce : le rendez-vous obligatoire que 38 % des femmes ne font toujours pas
 
-**Code ouvert : la logique de calcul autour de l'entretien prénatal précoce, telle que définie par l'article L2122-1 du Code de la santé publique, peut être entièrement implémentée en JavaScript pur — sans dépendance tierce, sans API propriétaire.**
+L'entretien prénatal précoce, créé par la loi du 5 mars 2007 sur la protection de l'enfance et codifié à l'article L2122-1 du Code de la santé publique, est devenu obligatoire au début de la grossesse depuis le 1er janvier 2020 (LFSS 2020). Pourtant, selon le rapport de la Haute Autorité de Santé publié en 2024, **38 % des femmes enceintes** ne réalisent toujours pas cet entretien, soit parce qu'elles l'ignorent, soit parce que leur professionnel de santé ne le leur a pas proposé activement.
 
----
+*Cet article a vocation informative et ne se substitue pas au suivi par un professionnel de santé compétent (sage-femme, gynécologue, médecin généraliste).*
 
-## Contexte réglementaire et pertinence pour un dataset public
+## Distinction avec la première consultation prénatale
 
-L'article L2122-1 du Code de la santé publique encadre l'entretien prénatal précoce (EPP), un rendez-vous individualisé proposé à chaque femme enceinte — ou au couple — idéalement avant la fin du quatrième mois de grossesse. Cet entretien, distinct des consultations médicales obligatoires, poursuit un objectif de prévention psychosociale : évaluer les besoins d'accompagnement, repérer les fragilités éventuelles, orienter vers les ressources adaptées.
+L'entretien prénatal précoce (EPP) est distinct de la première consultation prénatale obligatoire :
 
-Du point de vue data, ce dispositif génère plusieurs variables calculables : le terme limite théorique pour la tenue de l'entretien, la semaine d'aménorrhée (SA) à laquelle il devrait survenir, et les jalons administratifs associés (déclaration de grossesse, premier trimestre, etc.). Ces paramètres sont déterministes — ils dépendent uniquement de la date des dernières règles (DDR) ou de la date présumée d'accouchement (DPA) — ce qui les rend parfaitement adaptés à une implémentation en logique pure.
+**La première consultation prénatale**, à effectuer avant la fin du 3ème mois, a un objectif principalement médical : confirmer la grossesse, dater le terme, prescrire les premiers examens biologiques obligatoires (sérologies toxoplasmose, rubéole, syphilis, VIH avec accord, glycosurie, protéinurie, hémoglobine, groupe sanguin).
 
----
+**L'entretien prénatal précoce**, à effectuer avant la fin du 4ème mois, a un objectif d'information, d'orientation et de prévention psychosociale. Il dure obligatoirement au moins **45 minutes** et peut s'étendre jusqu'à 1 heure. C'est un acte indépendant de la consultation médicale, pris en charge à 100 % par l'Assurance Maladie depuis 2020 (taux de remboursement majoré, hors parcours de soins coordonnés).
 
-## Structure du dataset minimal
+## Qui peut réaliser l'entretien
 
-Un dataset open source cohérent pour modéliser l'EPP L2122-1 doit exposer au minimum les champs suivants :
+L'EPP peut être réalisé par :
+- Une **sage-femme libérale ou hospitalière** (cas le plus fréquent, environ 72 % des EPP selon la HAS 2024)
+- Un **médecin généraliste** formé à la périnatalité
+- Un **gynécologue-obstétricien**
+- Un **médecin de PMI** (Protection Maternelle et Infantile)
 
-```json
-{
-  "ddr": "2024-03-10",
-  "dpa_calculee": "2025-01-01",
-  "sa_actuelle": 14,
-  "terme_limite_epp": "2024-07-03",
-  "epp_realise": false,
-  "semaine_cible_epp": 16
-}
-```
+Le choix du professionnel est libre, sans nécessité de passer par le médecin traitant.
 
-La `semaine_cible_epp` est ici fixée à 16 SA comme valeur par défaut dans la majorité des protocoles de référence, même si la fenêtre réglementaire autorise une certaine souplesse avant la fin du quatrième mois — soit approximativement avant 18 SA révolues.
+## Les huit thèmes abordés systématiquement
 
----
+Selon les recommandations HAS actualisées en 2024, l'entretien doit couvrir huit thèmes obligatoires :
 
-## Implémentation JavaScript : calcul du terme limite
+1. **L'état de santé général de la femme**, antécédents médicaux et obstétricaux, prises de traitement à risque, addictions éventuelles.
+2. **La situation familiale et professionnelle**, congé maternité prévu, mode de garde envisagé pour l'enfant, présence d'autres enfants à charge.
+3. **L'état psychologique**, dépistage de fragilités émotionnelles, antécédents psychiatriques, soutien familial perçu.
+4. **Le projet de naissance**, préférences pour le lieu d'accouchement (maternité de niveau I, II ou III selon le risque), mode d'accouchement souhaité.
+5. **Le dépistage des situations de précarité**, ressources financières, situation de logement, accès aux soins.
+6. **Les comportements à risque**, consommation de tabac, alcool, drogues, et information sur les effets pendant la grossesse.
+7. **L'environnement familial**, prévention des violences conjugales (l'EPP est un moment-clé pour dépister ce risque, qui augmente significativement pendant la grossesse).
+8. **Les besoins d'information complémentaire**, allaitement, douleur de l'accouchement, péridurale, etc.
 
-Voici une fonction autonome, sans framework, pour calculer la date limite de réalisation de l'EPP à partir de la DDR :
+## L'orientation vers une "grossesse à risque" psychosocial
 
-```javascript
-/**
- * Calcule la date limite de l'entretien prénatal précoce (L2122-1)
- * @param {string} ddr - Date des dernières règles au format ISO (YYYY-MM-DD)
- * @param {number} saCible - Semaine d'aménorrhée cible (défaut : 16)
- * @returns {Date} - Date limite de l'EPP
- */
-function calculerDateLimiteEPP(ddr, saCible = 16) {
-  const dateDDR = new Date(ddr);
-  if (isNaN(dateDDR.getTime())) {
-    throw new Error("DDR invalide : format attendu YYYY-MM-DD");
-  }
-  const joursOffset = saCible * 7;
-  const dateLimite = new Date(dateDDR);
-  dateLimite.setDate(dateDDR.getDate() + joursOffset);
-  return dateLimite;
-}
+Si l'entretien révèle des facteurs de risque psychosociaux (précarité, isolement, violences, addictions, antécédents psychiatriques), la sage-femme peut orienter la femme vers un **suivi renforcé** prévu par la PMI ou par le service maternité de l'hôpital de référence. Ce suivi inclut généralement :
 
-// Exemple d'usage
-const limite = calculerDateLimiteEPP("2024-03-10", 16);
-console.log(limite.toISOString().split("T")[0]);
-// Output : "2024-07-01"
-```
+- Visites à domicile par une puéricultrice de PMI
+- Consultations psychologiques prises en charge à 100 %
+- Mise en relation avec les associations d'aide aux femmes enceintes en difficulté
+- Soutien financier complémentaire (Aide à la Naissance, prime de naissance CAF)
 
-La logique est intentionnellement minimaliste : pas de gestion des fuseaux horaires avancés, pas d'internationalisation. Pour une intégration en production sur un système de santé numérique, il faudrait ajouter une couche de validation stricte (Zod, Yup) et un traitement des cas limites liés aux cycles irréguliers.
+## Cas pratique : Marion, 28 ans, deuxième grossesse à 11 SA
 
----
+Marion a découvert sa grossesse à 6 semaines d'aménorrhée. Elle a sa première consultation prénatale chez son gynécologue à 8 SA pour les examens biologiques. Sa sage-femme lui propose l'EPP à **11 SA** (11ème semaine d'aménorrhée), soit avant la fin du 3ème mois.
 
-## Pipeline de traitement : de la DDR à l'alerte EPP
+L'entretien de 50 minutes révèle qu'elle subit du stress important au travail (CDI dans la grande distribution, charges lourdes), que son conjoint a perdu son emploi récemment, et qu'elle se sent isolée géographiquement (commune rurale, hôpital à 35 km). La sage-femme oriente vers :
+- Un suivi renforcé en consultation tous les 15 jours au lieu du mois standard
+- Une demande de reclassement professionnel auprès de l'employeur (article L1225-7 du Code du travail) pour éviter les charges lourdes
+- Une orientation PMI pour soutien social et budgétaire
+- L'attribution d'un transport en VSL pour les futures consultations prénatales
 
-Dans une architecture orientée données publiques de santé, on peut envisager un pipeline événementiel simple :
+Ce suivi proactif permet d'anticiper les complications et de mobiliser les ressources avant que la situation ne devienne critique en fin de grossesse.
 
-1. **Ingestion** : réception de la DDR depuis un formulaire de déclaration de grossesse (formulaire Cerfa 10112)
-2. **Transformation** : calcul de la DPA (DDR + 280 jours), de la SA courante et de la date limite EPP via les fonctions décrites ci-dessus
-3. **Qualification** : flag `epp_required` positionné à `true` si SA courante < SA cible et EPP non encore réalisé
-4. **Notification** : déclenchement d'une alerte à destination du professionnel de santé référent (sage-femme, médecin)
+## Et si l'EPP n'a pas été proposé ?
 
-Ce pipeline peut être sérialisé en JSON-LD pour s'intégrer dans les standards d'interopérabilité du secteur santé (FHIR R4, notamment la ressource `EpisodeOfCare`).
+Une femme enceinte qui n'a pas eu d'EPP peut le demander à tout moment **avant la fin du 4ème mois**. Au-delà, l'acte n'est plus pris en charge spécifiquement par l'Assurance Maladie mais reste recommandé sous forme d'une consultation longue avec un professionnel formé.
 
----
+Pour [voir le calendrier complet des examens et entretiens du suivi de grossesse 2026](https://macalculatriceenligne.com/grossesse/entretien-prenatal-precoce/), il faut tenir compte des sept consultations prénatales obligatoires, des trois échographies de référence (12 SA, 22 SA, 32 SA), et des éventuels examens complémentaires selon les facteurs de risque identifiés à l'EPP.
 
-## Piste d'enrichissement : croisement avec des données territoriales
+## Sources
 
-Un angle particulièrement productif pour un projet open data consiste à croiser les dates calculées avec des datasets géographiques publics (offre de soins Ameli, annuaire santé data.gouv.fr) afin d'évaluer la densité de professionnels habilités à conduire l'EPP par bassin de vie. L'entretien peut en effet être réalisé par une sage-femme ou un médecin — mais pas par n'importe quel professionnel de santé — ce qui introduit une contrainte d'accessibilité géographique non négligeable dans certains territoires.
+Loi du 5 mars 2007 sur la protection de l'enfance ; Code de la santé publique article L2122-1 ; LFSS 2020 portant remboursement à 100 % de l'EPP ; Haute Autorité de Santé, "Comment mieux informer les femmes enceintes : recommandations pour les professionnels de santé", actualisation 2024 ; rapport HAS 2024 sur la couverture de l'EPP en France ; ministère des Solidarités et de la Santé, dossier "Mille premiers jours" 2021.
 
-Pour les développeurs souhaitant approfondir la dimension réglementaire et comprendre le cadre exact dans lequel ces calculs s'inscrivent, [la ressource complète sur le sujet](https://macalculatriceenligne.com/grossesse/entretien-prenatal-precoce/) détaille les conditions d'application de l'article L2122-1.
+— Claire Dubois
 
----
-
-## Remarque sur la reproductibilité
-
-Toute implémentation sérieuse de ce type doit versionner ses paramètres métier (SA cible, tolérance en jours, définition du "quatrième mois") séparément du code de calcul. Un changement réglementaire ne devrait nécessiter qu'une mise à jour de configuration, jamais une réécriture algorithmique. C'est le principe de séparation des préoccupations appliqué à la donnée de santé publique — et c'est précisément ce qui rend ces outils auditables et conformes aux exigences de transparence des systèmes d'information de santé.
-
-— Claire
 
 ## Pages détaillées
 
