@@ -3,7 +3,7 @@
 > Ressources pédagogiques et techniques couvrant finance, fiscalité, RH, santé et éducation.
 > Barèmes 2026 officiels (Légifrance, INSEE, URSSAF, BOFiP).
 
-*Mis à jour : 2026-06-15*
+*Mis à jour : 2026-06-22*
 
 ## Navigation
 
